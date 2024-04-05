@@ -11,6 +11,8 @@ pub enum CursorMove {
     Right,
     LineBegin, 
     LineEnd, 
+    WordForward,
+    WordBackward,
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -58,6 +60,8 @@ impl Editor {
                     KeyCode::Char('l') | KeyCode::Right => self.move_cursor(CursorMove::Right),
                     KeyCode::Char('H') | KeyCode::Char('^') => self.move_cursor(CursorMove::LineBegin),
                     KeyCode::Char('L') | KeyCode::Char('$') => self.move_cursor(CursorMove::LineEnd),
+                    KeyCode::Char('w') => self.move_cursor(CursorMove::WordForward),
+                    KeyCode::Char('b') => self.move_cursor(CursorMove::WordBackward),
                     KeyCode::Char('i') => self.mode = EditMode::Insert,
                     KeyCode::Char('I') => {
                         self.move_cursor(CursorMove::LineBegin);
@@ -234,6 +238,21 @@ impl Editor {
                     } else {
                         self.cursor.0 = line.len().saturating_sub(1);
                     }
+                }
+            },
+            // XXX: At some point this   should be replaced by a lexer of some sort
+            CursorMove::WordForward => {
+                if let Some(line) = self.lines.get(self.cursor.1) {
+                    let ws_dist = line[self.cursor.0..].find(|c: char| c.is_whitespace()).unwrap_or(0);
+                    let alpha_dist = line[self.cursor.0 + ws_dist..].find(|c: char| !c.is_whitespace()).unwrap_or(0);
+                    self.cursor.0 += ws_dist + alpha_dist;
+                }
+            },
+            CursorMove::WordBackward => {
+                if let Some(line) = self.lines.get(self.cursor.1) {
+                    let alpha_dist = line[..self.cursor.0].rfind(|c: char| !c.is_whitespace()).unwrap_or(0);
+                    let start_dist = line[..alpha_dist].rfind(|c: char| c.is_whitespace()).map(|i| i + 1).unwrap_or(0);
+                    self.cursor.0 = start_dist;
                 }
             },
         }

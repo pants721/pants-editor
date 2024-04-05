@@ -72,6 +72,8 @@ impl Editor {
                         self.move_cursor(CursorMove::LineEnd);
                     },
                     KeyCode::Char('x') => self.delete_char_at_cursor(),
+                    KeyCode::Char('o') => self.newline_under_cursor(),
+                    KeyCode::Char('O') => self.newline_above_cursor(),
                     _ => (),
                 }
             },
@@ -84,8 +86,11 @@ impl Editor {
                     KeyCode::Char(val) => {
                         self.insert_char_at_cursor(val);
                     },
+                    KeyCode::Enter => {
+                        self.newline_at_cursor();
+                    },
                     KeyCode::Backspace => {
-                        self.backspace_char_at_cursor();
+                        self.backspace_at_cursor();
                     },
                     KeyCode::Esc => {
                         self.mode = EditMode::Normal;
@@ -109,11 +114,24 @@ impl Editor {
         }
     }
 
-    pub fn backspace_char_at_cursor(&mut self) {
-       if let Some(line)  = self.lines.get_mut(self.cursor.1) {
-            if self.cursor.0 == 0 {
+    pub fn backspace_at_cursor(&mut self) {
+        if self.cursor.0 == 0 {
+            if self.cursor.1 == 0 {
                 return;
             }
+            
+            let line = self.lines.remove(self.cursor.1);
+            if let Some(prev_line) = self.lines.get_mut(self.cursor.1 - 1) {
+                let join_idx = prev_line.len();
+                prev_line.push_str(&line);
+                self.move_cursor(CursorMove::Up);
+                self.cursor.0 = join_idx;
+            }
+            
+            return;
+        }
+        
+        if let Some(line)  = self.lines.get_mut(self.cursor.1) {
 
             if self.cursor.0 == line.len() {
                 line.pop();
@@ -130,6 +148,29 @@ impl Editor {
             if !line.is_empty() {
                 line.remove(self.cursor.0);
             }
+        }
+    }
+
+    pub fn newline_above_cursor(&mut self) {
+        self.lines.insert(self.cursor.1, "".to_string());
+        self.move_cursor(CursorMove::Up);
+        self.mode = EditMode::Insert;
+    }  
+    
+    pub fn newline_under_cursor(&mut self) {
+        self.lines.insert(self.cursor.1 + 1, "".to_string());
+        self.move_cursor(CursorMove::Down);
+        self.mode = EditMode::Insert;
+    }
+
+    pub fn newline_at_cursor(&mut self) {
+        if let Some(line) = self.lines.get_mut(self.cursor.1) {
+            let line_clone = line.clone();
+            let (left, right) = line_clone.split_at(self.cursor.0);
+            *line = left.to_string();
+            self.lines.insert(self.cursor.1 + 1, right.to_string());
+            self.move_cursor(CursorMove::Down);
+            self.move_cursor(CursorMove::LineBegin);
         }
     }
     

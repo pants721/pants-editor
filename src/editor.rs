@@ -1,6 +1,3 @@
-
-use std::process::exit;
-
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub enum CursorMove {
@@ -78,6 +75,7 @@ impl Editor {
                     },
                     KeyCode::Esc => {
                         self.mode = EditMode::Normal;
+                        self.move_cursor(CursorMove::Left);
                     },
                     _ => (),
                 }
@@ -114,23 +112,33 @@ impl Editor {
     }
 
     pub fn delete_char_at_cursor(&mut self) {
-       if let Some(line)  = self.lines.get_mut(self.cursor.1) {
-            line.remove(self.cursor.0);
+       if let Some(line) = self.lines.get_mut(self.cursor.1) {
+            if !line.is_empty() {
+                line.remove(self.cursor.0);
+            }
         }
     }
     
     pub fn move_cursor(&mut self, cursor_move: CursorMove) {
         match cursor_move {
+            // TODO: Implement some sort of column system to mimic vim's vertical movement with
+            // lines of different lengths
             CursorMove::Up => {
                 let computed = self.cursor.1.saturating_sub(1);
                 if self.char_at((self.cursor.0, computed)).is_some() {
                     self.cursor.1 = computed;
+                } else {
+                    self.cursor.1 = computed;
+                    self.move_cursor(CursorMove::LineEnd);
                 }
             },
             CursorMove::Down => {
                 let computed = self.cursor.1.saturating_add(1);
                 if self.char_at((self.cursor.0, computed)).is_some() {
                     self.cursor.1 = computed;
+                } else if computed < self.lines.len() {
+                    self.cursor.1 = computed;
+                    self.move_cursor(CursorMove::LineEnd);
                 }
             },
             // XXX: I think this needs to be improved for readability
@@ -139,7 +147,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.1)).is_some() {
                     self.cursor.0 = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.1) {
-                    if computed == line.len() {
+                    if computed == line.len() && self.mode == EditMode::Insert {
                         self.cursor.0 = computed;
                     }
                 }
@@ -150,7 +158,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.1)).is_some() {
                     self.cursor.0 = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.1) {
-                    if computed == line.len() {
+                    if computed == line.len() && self.mode == EditMode::Insert {
                         self.cursor.0 = computed;
                     }
                 }
@@ -160,13 +168,18 @@ impl Editor {
             },
             CursorMove::LineEnd => {
                 if let Some(line) = self.lines.get(self.cursor.1) {
-                    self.cursor.0 = line.len();
+                    if self.mode == EditMode::Insert {
+                        self.cursor.0 = line.len();
+                    } else {
+                        self.cursor.0 = line.len().saturating_sub(1);
+                    }
                 }
             },
         }
     }
-    
+
     pub fn char_at(&self, coords: (usize, usize)) -> Option<char> {
         self.lines.get(coords.1)?.chars().nth(coords.0)
     }
 }
+

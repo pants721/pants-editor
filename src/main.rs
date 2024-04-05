@@ -25,6 +25,7 @@ fn main() -> Result<()> {
         "line 2".to_string(),
         "line 3".to_string(),
         "line 4".to_string(),
+        "".to_string(),
         "line 5".to_string(),
     ];
     let res = run_editor(&mut terminal, &mut editor);

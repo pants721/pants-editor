@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.81"
 crossterm = "0.27.0"
+itertools = "0.12.1"
 ratatui = "0.26.1"

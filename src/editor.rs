@@ -1,4 +1,8 @@
+use std::{fs, path::Path};
+
+use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent};
+use itertools::Itertools;
 
 pub enum CursorMove {
     Up,
@@ -16,6 +20,7 @@ pub enum EditMode {
     Insert,
 }
 
+#[derive(Default)]
 pub struct Editor {
     pub lines: Vec<String>,
     pub cursor: (usize, usize),
@@ -24,11 +29,20 @@ pub struct Editor {
 
 impl Editor {
     pub fn new() -> Self {
-        Self {
-            lines: vec![],
-            cursor: (0, 0),
-            mode: EditMode::default(),
+        Self::default()
+    }
+
+    pub fn open_file(path: &Path) -> Result<Self> {
+        if !path.is_file() {
+            return Err(anyhow!("Path is not file"));
         }
+        let file_content = fs::read_to_string(path)?;
+        let lines = file_content.split('\n').map(|s| s.to_string()).collect_vec();
+
+        Ok(Self {
+            lines,
+            ..Default::default()
+        })
     }
 
     // TODO: I want to make this more of a match mode -> mode.handle_input(input) and mode uses a

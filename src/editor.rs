@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use anyhow::{anyhow, Result};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
 
 pub enum CursorMove {
@@ -32,6 +32,7 @@ impl Editor {
         Self::default()
     }
 
+    #[allow(dead_code)]
     pub fn open_file(path: &Path) -> Result<Self> {
         if !path.is_file() {
             return Err(anyhow!("Path is not file"));
@@ -78,6 +79,11 @@ impl Editor {
                 }
             },
             EditMode::Insert => {
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) && key_event.code == KeyCode::Char('c') {
+                    self.mode = EditMode::Normal;
+                    self.move_cursor(CursorMove::Left);
+                    return;
+                }
                 match key_event.code {
                     KeyCode::Down => self.move_cursor(CursorMove::Down),
                     KeyCode::Up => self.move_cursor(CursorMove::Up),

@@ -29,7 +29,6 @@ fn main() -> Result<()> {
         "line 5".to_string(),
     ];
     let res = run_editor(&mut terminal, &mut editor);
-
     
     disable_raw_mode()?;
     execute!(
@@ -55,7 +54,7 @@ fn run_editor<B: Backend>(
                 continue;
             }
 
-            if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+            if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('d') {
                 return Ok(true);
             }
 

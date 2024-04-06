@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fmt::Display, fs, path::Path};
 
 use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -22,10 +22,20 @@ pub enum EditMode {
     Insert,
 }
 
+impl Display for EditMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EditMode::Normal => write!(f, "Normal"),
+            EditMode::Insert => write!(f, "Insert"),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Editor {
     pub lines: Vec<String>,
     pub cursor: (usize, usize),
+    pub scroll: (u16, u16),
     pub mode: EditMode,
 }
 
@@ -34,7 +44,6 @@ impl Editor {
         Self::default()
     }
 
-    #[allow(dead_code)]
     pub fn open_file(path: &Path) -> Result<Self> {
         if !path.is_file() {
             return Err(anyhow!("Path is not file"));
@@ -62,6 +71,8 @@ impl Editor {
                     KeyCode::Char('L') | KeyCode::Char('$') => self.move_cursor(CursorMove::LineEnd),
                     KeyCode::Char('w') => self.move_cursor(CursorMove::WordForward),
                     KeyCode::Char('b') => self.move_cursor(CursorMove::WordBackward),
+                    // TODO: This should be dd so find some sort of chord implementation
+                    KeyCode::Char('d') => self.delete_line_at_cursor(),
                     KeyCode::Char('i') => self.mode = EditMode::Insert,
                     KeyCode::Char('I') => {
                         self.move_cursor(CursorMove::LineBegin);
@@ -161,6 +172,10 @@ impl Editor {
         }
     }
 
+    pub fn delete_line_at_cursor(&mut self) {
+        self.lines.remove(self.cursor.1);
+    }
+
     pub fn newline_above_cursor(&mut self) {
         self.lines.insert(self.cursor.1, "".to_string());
         self.move_cursor(CursorMove::Up);
@@ -190,10 +205,8 @@ impl Editor {
             // lines of different lengths
             CursorMove::Up => {
                 let computed = self.cursor.1.saturating_sub(1);
-                if self.char_at((self.cursor.0, computed)).is_some() {
-                    self.cursor.1 = computed;
-                } else {
-                    self.cursor.1 = computed;
+                self.cursor.1 = computed;
+                if self.char_at((self.cursor.0, computed)).is_none() {
                     self.move_cursor(CursorMove::LineEnd);
                 }
             },
@@ -240,7 +253,7 @@ impl Editor {
                     }
                 }
             },
-            // XXX: At some point this   should be replaced by a lexer of some sort
+            // XXX: At some point this should be replaced by a lexer of some sort
             CursorMove::WordForward => {
                 if let Some(line) = self.lines.get(self.cursor.1) {
                     let ws_dist = line[self.cursor.0..].find(|c: char| c.is_whitespace()).unwrap_or(0);
@@ -262,4 +275,3 @@ impl Editor {
         self.lines.get(coords.1)?.chars().nth(coords.0)
     }
 }
-

@@ -13,6 +13,7 @@ use editor::Editor;
 use ratatui::prelude::*;
 use ui::ui;
 
+mod word;
 mod editor;
 mod ui;
 

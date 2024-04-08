@@ -1,8 +1,10 @@
-use std::{fmt::Display, fs, path::Path};
+use std::{collections::HashMap, fmt::Display, fs, path::Path};
 
 use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
+
+use crate::word;
 
 pub enum CursorMove {
     Up,
@@ -11,8 +13,9 @@ pub enum CursorMove {
     Right,
     LineBegin,
     LineEnd,
-    WordForward,
-    WordBackward,
+    WordStartForward,
+    WordStartBackward,
+    WordEndForward,
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -71,14 +74,12 @@ impl Editor {
                     KeyCode::Char('k') | KeyCode::Up => self.move_cursor(CursorMove::Up),
                     KeyCode::Char('h') | KeyCode::Left => self.move_cursor(CursorMove::Left),
                     KeyCode::Char('l') | KeyCode::Right => self.move_cursor(CursorMove::Right),
-                    KeyCode::Char('H') | KeyCode::Char('^') => {
-                        self.move_cursor(CursorMove::LineBegin)
-                    }
-                    KeyCode::Char('L') | KeyCode::Char('$') => {
-                        self.move_cursor(CursorMove::LineEnd)
-                    }
-                    KeyCode::Char('w') => self.move_cursor(CursorMove::WordForward),
-                    KeyCode::Char('b') => self.move_cursor(CursorMove::WordBackward),
+                    KeyCode::Char('H') | KeyCode::Char('^') => self.move_cursor(CursorMove::LineBegin),
+                    KeyCode::Char('L') | KeyCode::Char('$') => self.move_cursor(CursorMove::LineEnd),
+                    // This isn't good enough right now
+                    KeyCode::Char('w') => self.move_cursor(CursorMove::WordStartForward),
+                    KeyCode::Char('b') => self.move_cursor(CursorMove::WordStartBackward),
+                    KeyCode::Char('e') => self.move_cursor(CursorMove::WordEndForward),
                     // TODO: This should be dd so find some sort of chord implementation
                     KeyCode::Char('i') => self.mode = EditMode::Insert,
                     KeyCode::Char('I') => {
@@ -283,27 +284,28 @@ impl Editor {
                 }
             }
             // XXX: At some point this should be replaced by a lexer of some sort
-            CursorMove::WordForward => {
+            CursorMove::WordStartForward => {
                 if let Some(line) = self.lines.get(self.cursor.1) {
-                    let ws_dist = line[self.cursor.0..]
-                        .find(|c: char| c.is_whitespace())
-                        .unwrap_or(0);
-                    let alpha_dist = line[self.cursor.0 + ws_dist..]
-                        .find(|c: char| !c.is_whitespace())
-                        .unwrap_or(0);
-                    self.cursor.0 += ws_dist + alpha_dist;
+                    self.cursor.0 = match word::find_word_start_forward(line, self.cursor.0) {
+                        Some(idx) => idx,
+                        None => self.cursor.0,
+                    }
                 }
             }
-            CursorMove::WordBackward => {
+            CursorMove::WordStartBackward => {
                 if let Some(line) = self.lines.get(self.cursor.1) {
-                    let alpha_dist = line[..self.cursor.0]
-                        .rfind(|c: char| !c.is_whitespace())
-                        .unwrap_or(0);
-                    let start_dist = line[..alpha_dist]
-                        .rfind(|c: char| c.is_whitespace())
-                        .map(|i| i + 1)
-                        .unwrap_or(0);
-                    self.cursor.0 = start_dist;
+                    self.cursor.0 = match word::find_word_start_backward(line, self.cursor.0) {
+                        Some(idx) => idx,
+                        None => self.cursor.0,
+                    }
+                }
+            }
+            CursorMove::WordEndForward => {
+                if let Some(line) = self.lines.get(self.cursor.1) {
+                    self.cursor.0 = match word::find_word_end_forward(line, self.cursor.0) {
+                        Some(idx) => idx,
+                        None => self.cursor.0,
+                    }
                 }
             }
         }

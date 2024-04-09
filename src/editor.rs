@@ -44,9 +44,9 @@ pub struct Cursor {
     pub y: usize,
 }
 
-impl Into<(usize, usize)> for Cursor {
-    fn into(self) -> (usize, usize) {
-        (self.x, self.y)
+impl From<Cursor> for (usize, usize) {
+    fn from(value: Cursor) -> Self {
+        (value.x, value.y)
     }
 }
 

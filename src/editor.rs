@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display, fs, path::Path};
+use std::{
+    fmt::Display,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -43,12 +47,12 @@ pub struct Editor {
 }
 
 impl Editor {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn open_file(path: &Path) -> Result<Self> {
+    pub fn open_file(&mut self, path: &str) -> Result<()> {
+        let path = PathBuf::from(path);
         if !path.is_file() {
             return Err(anyhow!("Path is not file"));
         }
@@ -57,11 +61,8 @@ impl Editor {
             .split('\n')
             .map(|s| s.to_string())
             .collect_vec();
-
-        Ok(Self {
-            lines,
-            ..Default::default()
-        })
+        self.lines = lines;
+        Ok(())
     }
 
     // TODO: I want to make this more of a match mode -> mode.handle_input(input) and mode uses a
@@ -74,9 +75,12 @@ impl Editor {
                     KeyCode::Char('k') | KeyCode::Up => self.move_cursor(CursorMove::Up),
                     KeyCode::Char('h') | KeyCode::Left => self.move_cursor(CursorMove::Left),
                     KeyCode::Char('l') | KeyCode::Right => self.move_cursor(CursorMove::Right),
-                    KeyCode::Char('H') | KeyCode::Char('^') => self.move_cursor(CursorMove::LineBegin),
-                    KeyCode::Char('L') | KeyCode::Char('$') => self.move_cursor(CursorMove::LineEnd),
-                    // This isn't good enough right now
+                    KeyCode::Char('H') | KeyCode::Char('^') => {
+                        self.move_cursor(CursorMove::LineBegin)
+                    }
+                    KeyCode::Char('L') | KeyCode::Char('$') => {
+                        self.move_cursor(CursorMove::LineEnd)
+                    }
                     KeyCode::Char('w') => self.move_cursor(CursorMove::WordStartForward),
                     KeyCode::Char('b') => self.move_cursor(CursorMove::WordStartBackward),
                     KeyCode::Char('e') => self.move_cursor(CursorMove::WordEndForward),
@@ -97,7 +101,27 @@ impl Editor {
                     }
                     KeyCode::Char('x') => self.delete_char_at_cursor(),
                     KeyCode::Char('X') => self.backspace_at_cursor(),
-                    KeyCode::Char('d') => self.delete_line_at_cursor(),
+                    KeyCode::Char('d') => {
+                        // TODO: Make this a function. Maybe use a Scroll enum
+                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                            for _ in 0..19 {
+                                self.move_cursor(CursorMove::Down);
+                                self.scroll.0 += 1;
+                            }
+                        } else {
+                            self.delete_line_at_cursor();
+                        }
+                    }
+                    KeyCode::Char('u') => {
+                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                            for _ in 0..19 {
+                                self.move_cursor(CursorMove::Up);
+                                if self.scroll.0 != 0 {
+                                    self.scroll.0 -= 1;
+                                }
+                            }
+                        }
+                    }
                     KeyCode::Char('o') => self.newline_under_cursor(),
                     KeyCode::Char('O') => self.newline_above_cursor(),
                     _ => (),

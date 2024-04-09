@@ -10,12 +10,13 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use editor::Editor;
+use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
 
-mod word;
 mod editor;
 mod ui;
+mod word;
 
 fn main() -> Result<()> {
     enable_raw_mode()?;
@@ -25,7 +26,14 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let mut editor = Editor::open_file(&PathBuf::from("src/editor.rs"))?;
+    let args = std::env::args();
+
+    let mut editor = Editor::new();
+    if args.len() > 1 {
+        editor.open_file(&args.collect_vec()[1])?;
+    } else {
+        editor.open_file("src/editor.rs")?;
+    }
     run_editor(&mut terminal, &mut editor)?;
 
     disable_raw_mode()?;

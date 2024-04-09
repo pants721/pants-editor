@@ -38,10 +38,22 @@ impl Display for EditMode {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct Cursor {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Into<(usize, usize)> for Cursor {
+    fn into(self) -> (usize, usize) {
+        (self.x, self.y)
+    }
+}
+
 #[derive(Default)]
 pub struct Editor {
     pub lines: Vec<String>,
-    pub cursor: (usize, usize),
+    pub cursor: Cursor,
     pub scroll: (u16, u16),
     pub mode: EditMode,
 }
@@ -160,11 +172,11 @@ impl Editor {
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {
-        if let Some(line) = self.lines.get_mut(self.cursor.1) {
-            if self.cursor.0 == line.len() {
+        if let Some(line) = self.lines.get_mut(self.cursor.y) {
+            if self.cursor.x == line.len() {
                 line.push(c);
             } else {
-                line.insert(self.cursor.0, c);
+                line.insert(self.cursor.x, c);
             }
 
             self.move_cursor(CursorMove::Right);
@@ -172,27 +184,27 @@ impl Editor {
     }
 
     pub fn backspace_at_cursor(&mut self) {
-        if self.cursor.0 == 0 && self.mode == EditMode::Insert {
-            if self.cursor.1 == 0 {
+        if self.cursor.x == 0 && self.mode == EditMode::Insert {
+            if self.cursor.y == 0 {
                 return;
             }
 
-            let line = self.lines.remove(self.cursor.1);
-            if let Some(prev_line) = self.lines.get_mut(self.cursor.1 - 1) {
+            let line = self.lines.remove(self.cursor.y);
+            if let Some(prev_line) = self.lines.get_mut(self.cursor.y - 1) {
                 let join_idx = prev_line.len();
                 prev_line.push_str(&line);
                 self.move_cursor(CursorMove::Up);
-                self.cursor.0 = join_idx;
+                self.cursor.x = join_idx;
             }
 
             return;
         }
 
-        if let Some(line) = self.lines.get_mut(self.cursor.1) {
-            if self.cursor.0 == line.len() {
+        if let Some(line) = self.lines.get_mut(self.cursor.y) {
+            if self.cursor.x == line.len() {
                 line.pop();
             } else {
-                line.remove(self.cursor.0 - 1);
+                line.remove(self.cursor.x - 1);
             }
 
             self.move_cursor(CursorMove::Left);
@@ -200,13 +212,13 @@ impl Editor {
     }
 
     pub fn delete_char_at_cursor(&mut self) {
-        if let Some(line) = self.lines.get_mut(self.cursor.1) {
+        if let Some(line) = self.lines.get_mut(self.cursor.y) {
             if !line.is_empty() {
-                line.remove(self.cursor.0);
+                line.remove(self.cursor.x);
             }
         }
 
-        if self.char_at(self.cursor).is_none() {
+        if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::Left);
         }
     }
@@ -218,36 +230,36 @@ impl Editor {
             return;
         }
 
-        if self.cursor.1 == self.lines.len() - 1 {
-            self.lines.remove(self.cursor.1);
+        if self.cursor.y == self.lines.len() - 1 {
+            self.lines.remove(self.cursor.y);
             self.move_cursor(CursorMove::Up);
             return;
         }
 
-        self.lines.remove(self.cursor.1);
-        if self.char_at(self.cursor).is_none() {
+        self.lines.remove(self.cursor.y);
+        if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::LineEnd);
         }
     }
 
     pub fn newline_above_cursor(&mut self) {
-        self.lines.insert(self.cursor.1, "".to_string());
+        self.lines.insert(self.cursor.y, "".to_string());
         self.move_cursor(CursorMove::Up);
         self.mode = EditMode::Insert;
     }
 
     pub fn newline_under_cursor(&mut self) {
-        self.lines.insert(self.cursor.1 + 1, "".to_string());
+        self.lines.insert(self.cursor.y + 1, "".to_string());
         self.move_cursor(CursorMove::Down);
         self.mode = EditMode::Insert;
     }
 
     pub fn newline_at_cursor(&mut self) {
-        if let Some(line) = self.lines.get_mut(self.cursor.1) {
+        if let Some(line) = self.lines.get_mut(self.cursor.y) {
             let line_clone = line.clone();
-            let (left, right) = line_clone.split_at(self.cursor.0);
+            let (left, right) = line_clone.split_at(self.cursor.x);
             *line = left.to_string();
-            self.lines.insert(self.cursor.1 + 1, right.to_string());
+            self.lines.insert(self.cursor.y + 1, right.to_string());
             self.move_cursor(CursorMove::Down);
             self.move_cursor(CursorMove::LineBegin);
         }
@@ -258,77 +270,77 @@ impl Editor {
             // TODO: Implement some sort of column system to mimic vim's vertical movement with
             // lines of different lengths
             CursorMove::Up => {
-                let computed = self.cursor.1.saturating_sub(1);
-                self.cursor.1 = computed;
-                if self.char_at((self.cursor.0, computed)).is_none() {
+                let computed = self.cursor.y.saturating_sub(1);
+                self.cursor.y = computed;
+                if self.char_at((self.cursor.x, computed)).is_none() {
                     self.move_cursor(CursorMove::LineEnd);
                 }
             }
             CursorMove::Down => {
-                let computed = self.cursor.1.saturating_add(1);
-                if self.char_at((self.cursor.0, computed)).is_some() {
-                    self.cursor.1 = computed;
+                let computed = self.cursor.y.saturating_add(1);
+                if self.char_at((self.cursor.x, computed)).is_some() {
+                    self.cursor.y = computed;
                 } else if computed < self.lines.len() {
-                    self.cursor.1 = computed;
+                    self.cursor.y = computed;
                     self.move_cursor(CursorMove::LineEnd);
                 }
             }
             // XXX: I think this needs to be improved for readability
             CursorMove::Left => {
-                let computed = self.cursor.0.saturating_sub(1);
-                if self.char_at((computed, self.cursor.1)).is_some() {
-                    self.cursor.0 = computed;
-                } else if let Some(line) = self.lines.get(self.cursor.1) {
+                let computed = self.cursor.x.saturating_sub(1);
+                if self.char_at((computed, self.cursor.y)).is_some() {
+                    self.cursor.x = computed;
+                } else if let Some(line) = self.lines.get(self.cursor.y) {
                     if computed == line.len() && self.mode == EditMode::Insert {
-                        self.cursor.0 = computed;
+                        self.cursor.x = computed;
                     }
                 }
             }
             // XXX: I think this needs to be improved for readability
             CursorMove::Right => {
-                let computed = self.cursor.0.saturating_add(1);
-                if self.char_at((computed, self.cursor.1)).is_some() {
-                    self.cursor.0 = computed;
-                } else if let Some(line) = self.lines.get(self.cursor.1) {
+                let computed = self.cursor.x.saturating_add(1);
+                if self.char_at((computed, self.cursor.y)).is_some() {
+                    self.cursor.x = computed;
+                } else if let Some(line) = self.lines.get(self.cursor.y) {
                     if computed == line.len() && self.mode == EditMode::Insert {
-                        self.cursor.0 = computed;
+                        self.cursor.x = computed;
                     }
                 }
             }
             CursorMove::LineBegin => {
-                self.cursor.0 = 0;
+                self.cursor.x = 0;
             }
             CursorMove::LineEnd => {
-                if let Some(line) = self.lines.get(self.cursor.1) {
+                if let Some(line) = self.lines.get(self.cursor.y) {
                     if self.mode == EditMode::Insert {
-                        self.cursor.0 = line.len();
+                        self.cursor.x = line.len();
                     } else {
-                        self.cursor.0 = line.len().saturating_sub(1);
+                        self.cursor.x = line.len().saturating_sub(1);
                     }
                 }
             }
             // XXX: At some point this should be replaced by a lexer of some sort
             CursorMove::WordStartForward => {
-                if let Some(line) = self.lines.get(self.cursor.1) {
-                    self.cursor.0 = match word::find_word_start_forward(line, self.cursor.0) {
+                if let Some(line) = self.lines.get(self.cursor.y) {
+                    self.cursor.x = match word::find_word_start_forward(line, self.cursor.x) {
                         Some(idx) => idx,
-                        None => self.cursor.0,
+                        None => self.cursor.x,
                     }
                 }
             }
             CursorMove::WordStartBackward => {
-                if let Some(line) = self.lines.get(self.cursor.1) {
-                    self.cursor.0 = match word::find_word_start_backward(line, self.cursor.0) {
+                if let Some(line) = self.lines.get(self.cursor.y) {
+                    self.cursor.x = match word::find_word_start_backward(line, self.cursor.x) {
                         Some(idx) => idx,
-                        None => self.cursor.0,
+                        None => self.cursor.x,
                     }
                 }
             }
             CursorMove::WordEndForward => {
-                if let Some(line) = self.lines.get(self.cursor.1) {
-                    self.cursor.0 = match word::find_word_end_forward(line, self.cursor.0) {
+                if let Some(line) = self.lines.get(self.cursor.y) {
+                    self.cursor.x = match word::find_word_end_forward(line, self.cursor.x) {
                         Some(idx) => idx,
-                        None => self.cursor.0,
+                        None => self.cursor.x,
                     }
                 }
             }

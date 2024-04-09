@@ -9,10 +9,10 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let mut buffer_rect = f.size();
     buffer_rect.height = f.size().height - 2;
 
-    if (editor.cursor.1 as u16) < editor.scroll.0 {
-        editor.scroll.0 = editor.cursor.1 as u16;
-    } else if (editor.cursor.1 as u16) >= editor.scroll.0 + buffer_rect.height {
-        editor.scroll.0 = (editor.cursor.1 as u16) - buffer_rect.height.saturating_sub(1);
+    if (editor.cursor.y as u16) < editor.scroll.0 {
+        editor.scroll.0 = editor.cursor.y as u16;
+    } else if (editor.cursor.y as u16) >= editor.scroll.0 + buffer_rect.height {
+        editor.scroll.0 = (editor.cursor.y as u16) - buffer_rect.height.saturating_sub(1);
     }
 
     let line_number_width = (editor.scroll.0 + buffer_rect.height)
@@ -41,15 +41,15 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     f.render_widget(line_numbers, line_numbers_rect);
 
     f.set_cursor(
-        editor.cursor.0 as u16 + (f.size().width - buffer_rect.width),
-        editor.cursor.1 as u16 - editor.scroll.0,
+        editor.cursor.x as u16 + (f.size().width - buffer_rect.width),
+        editor.cursor.y as u16 - editor.scroll.0,
     );
 
     let buffer_block = Paragraph::new(editor.lines.join("\n")).scroll(editor.scroll);
 
     let statusline_block = Paragraph::new(format!(
         "[{}] {}:{}",
-        editor.mode, editor.cursor.0, editor.cursor.1
+        editor.mode, editor.cursor.x, editor.cursor.y
     ))
     .on_red()
     .black();

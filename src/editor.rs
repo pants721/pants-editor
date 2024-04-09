@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
 
-use crate::word;
+use crate::{cursor::Cursor, word};
 
 pub enum CursorMove {
     Up,
@@ -35,18 +35,6 @@ impl Display for EditMode {
             EditMode::Normal => write!(f, "Normal"),
             EditMode::Insert => write!(f, "Insert"),
         }
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-pub struct Cursor {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl From<Cursor> for (usize, usize) {
-    fn from(value: Cursor) -> Self {
-        (value.x, value.y)
     }
 }
 

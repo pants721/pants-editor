@@ -14,6 +14,7 @@ use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
 
+mod cursor;
 mod editor;
 mod ui;
 mod word;

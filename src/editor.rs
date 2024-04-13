@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
+use ratatui::widgets::Widget;
 
 use crate::{cursor::Cursor, word};
 
@@ -44,6 +45,9 @@ pub struct Editor {
     pub cursor: Cursor,
     pub scroll: (u16, u16),
     pub mode: EditMode,
+    // TODO: Make this absolute path
+    pub filename: Option<PathBuf>,
+    pub status_message: String,
 }
 
 impl Editor {
@@ -51,17 +55,33 @@ impl Editor {
         Self::default()
     }
 
-    pub fn open_file(&mut self, path: &str) -> Result<()> {
+    pub fn open(&mut self, path: &str) -> Result<()> {
         let path = PathBuf::from(path);
         if !path.is_file() {
             return Err(anyhow!("Path is not file"));
         }
-        let file_content = fs::read_to_string(path)?;
+        let file_content = fs::read_to_string(&path)?;
         let lines = file_content
             .split('\n')
             .map(|s| s.to_string())
             .collect_vec();
         self.lines = lines;
+        self.filename = Some(path);
+        Ok(())
+    }
+
+    pub fn save(&mut self) -> Result<()> {
+        if self.filename.is_none() {
+            self.status_message = "Filename not set".to_string();
+            return Err(anyhow!("Filename not set"))
+        }
+
+        let path = self.filename.as_ref().unwrap();
+        let contents = self.lines.join("\n");
+
+        fs::write(path, contents)?;
+
+        self.status_message = format!("\"{}\" written", path.display());
         Ok(())
     }
 
@@ -120,6 +140,11 @@ impl Editor {
                                     self.scroll.0 -= 1;
                                 }
                             }
+                        }
+                    }
+                    KeyCode::Char('s') => {
+                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                            self.save();
                         }
                     }
                     KeyCode::Char('o') => self.newline_under_cursor(),

@@ -57,6 +57,12 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     statusline_rect.height = 1;
     statusline_rect.y = f.size().height - 2;
 
+    let statusmessage_block = Paragraph::new(editor.status_message.clone());
+    let mut statusmessage_rect = f.size();
+    statusmessage_rect.height = 1;
+    statusmessage_rect.y = f.size().height - 1;
+
     f.render_widget(buffer_block, buffer_rect);
     f.render_widget(statusline_block, statusline_rect);
+    f.render_widget(statusmessage_block, statusmessage_rect);
 }

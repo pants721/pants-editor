@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
@@ -18,6 +18,7 @@ mod cursor;
 mod editor;
 mod ui;
 mod word;
+mod history;
 
 fn main() -> Result<()> {
     enable_raw_mode()?;
@@ -31,9 +32,7 @@ fn main() -> Result<()> {
 
     let mut editor = Editor::new();
     if args.len() > 1 {
-        editor.open_file(&args.collect_vec()[1])?;
-    } else {
-        editor.open_file("src/editor.rs")?;
+        editor.open(&args.collect_vec()[1])?;
     }
     run_editor(&mut terminal, &mut editor)?;
 

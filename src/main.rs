@@ -50,11 +50,6 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
             return Ok(());
         }
 
-        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-            editor.running = false;
-            return Ok(());
-        }
-
         handle_key(key, editor)?;
         
     }
@@ -62,6 +57,11 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
 }
 
 fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
+        editor.running = false;
+        return Ok(());
+    }
+    
     match editor.mode {
         EditMode::Normal => {
             match key.code {

@@ -7,9 +7,9 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
-use ratatui::widgets::Widget;
+use ratatui::widgets::{Block, Widget};
 
-use crate::{cursor::Cursor, word};
+use crate::{cursor::Cursor, renderer::Renderer, word};
 
 pub enum CursorMove {
     Up,
@@ -40,19 +40,23 @@ impl Display for EditMode {
 }
 
 #[derive(Default)]
-pub struct Editor {
+pub struct Editor<'a> {
     pub lines: Vec<String>,
     pub cursor: Cursor,
-    pub scroll: (u16, u16),
     pub mode: EditMode,
     // TODO: Make this absolute path
     pub filename: Option<PathBuf>,
     pub status_message: String,
+    pub block: Option<Block<'a>>,
+    pub running: bool,
 }
 
-impl Editor {
+impl<'a> Editor<'a> {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            running: true,
+            ..Default::default()
+        }
     }
 
     pub fn open(&mut self, path: &str) -> Result<()> {
@@ -70,6 +74,7 @@ impl Editor {
         Ok(())
     }
 
+    // TODO: Add quit confirmation for unsaved
     pub fn save(&mut self) -> Result<()> {
         if self.filename.is_none() {
             self.status_message = "Filename not set".to_string();
@@ -85,103 +90,8 @@ impl Editor {
         Ok(())
     }
 
-    // TODO: I want to make this more of a match mode -> mode.handle_input(input) and mode uses a
-    // keymap
-    pub fn input(&mut self, key_event: KeyEvent) {
-        match self.mode {
-            EditMode::Normal => {
-                match key_event.code {
-                    KeyCode::Char('j') | KeyCode::Down => self.move_cursor(CursorMove::Down),
-                    KeyCode::Char('k') | KeyCode::Up => self.move_cursor(CursorMove::Up),
-                    KeyCode::Char('h') | KeyCode::Left => self.move_cursor(CursorMove::Left),
-                    KeyCode::Char('l') | KeyCode::Right => self.move_cursor(CursorMove::Right),
-                    KeyCode::Char('H') | KeyCode::Char('^') => {
-                        self.move_cursor(CursorMove::LineBegin)
-                    }
-                    KeyCode::Char('L') | KeyCode::Char('$') => {
-                        self.move_cursor(CursorMove::LineEnd)
-                    }
-                    KeyCode::Char('w') => self.move_cursor(CursorMove::WordStartForward),
-                    KeyCode::Char('b') => self.move_cursor(CursorMove::WordStartBackward),
-                    KeyCode::Char('e') => self.move_cursor(CursorMove::WordEndForward),
-                    // TODO: This should be dd so find some sort of chord implementation
-                    KeyCode::Char('i') => self.mode = EditMode::Insert,
-                    KeyCode::Char('I') => {
-                        self.move_cursor(CursorMove::LineBegin);
-                        // TODO: maybe i should just make a self.insert_mode() function
-                        self.mode = EditMode::Insert;
-                    }
-                    KeyCode::Char('a') => {
-                        self.mode = EditMode::Insert;
-                        self.move_cursor(CursorMove::Right);
-                    }
-                    KeyCode::Char('A') => {
-                        self.mode = EditMode::Insert;
-                        self.move_cursor(CursorMove::LineEnd);
-                    }
-                    KeyCode::Char('x') => self.delete_char_at_cursor(),
-                    KeyCode::Char('X') => self.backspace_at_cursor(),
-                    KeyCode::Char('d') => {
-                        // TODO: Make this a function. Maybe use a Scroll enum
-                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                            for _ in 0..19 {
-                                self.move_cursor(CursorMove::Down);
-                                self.scroll.0 += 1;
-                            }
-                        } else {
-                            self.delete_line_at_cursor();
-                        }
-                    }
-                    KeyCode::Char('u') => {
-                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                            for _ in 0..19 {
-                                self.move_cursor(CursorMove::Up);
-                                if self.scroll.0 != 0 {
-                                    self.scroll.0 -= 1;
-                                }
-                            }
-                        }
-                    }
-                    KeyCode::Char('s') => {
-                        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                            self.save();
-                        }
-                    }
-                    KeyCode::Char('o') => self.newline_under_cursor(),
-                    KeyCode::Char('O') => self.newline_above_cursor(),
-                    _ => (),
-                }
-            }
-            EditMode::Insert => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL)
-                    && key_event.code == KeyCode::Char('c')
-                {
-                    self.mode = EditMode::Normal;
-                    self.move_cursor(CursorMove::Left);
-                    return;
-                }
-                match key_event.code {
-                    KeyCode::Down => self.move_cursor(CursorMove::Down),
-                    KeyCode::Up => self.move_cursor(CursorMove::Up),
-                    KeyCode::Left => self.move_cursor(CursorMove::Left),
-                    KeyCode::Right => self.move_cursor(CursorMove::Right),
-                    KeyCode::Char(val) => {
-                        self.insert_char_at_cursor(val);
-                    }
-                    KeyCode::Enter => {
-                        self.newline_at_cursor();
-                    }
-                    KeyCode::Backspace => {
-                        self.backspace_at_cursor();
-                    }
-                    KeyCode::Esc => {
-                        self.mode = EditMode::Normal;
-                        self.move_cursor(CursorMove::Left);
-                    }
-                    _ => (),
-                }
-            }
-        }
+    pub fn widget(&'a self)  -> impl Widget + 'a {
+        Renderer::new(self)
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {

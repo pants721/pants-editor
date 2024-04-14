@@ -1,51 +1,36 @@
+use itertools::Itertools;
 use ratatui::{
     prelude::*,
-    widgets::{Paragraph, Wrap},
+    widgets::*,
 };
 
-use crate::editor::Editor;
+use crate::editor::{self, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
-    let mut buffer_rect = f.size();
-    buffer_rect.height = f.size().height - 2;
+    let full_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Max(f.size().height - 2),
+            Constraint::Max(1), // status line
+            Constraint::Max(1), // notif area
+        ])
+        .split(f.size());
+    
+    let buffer_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![
+            Constraint::Max(editor.lines.len().to_string().len() as u16), // line numbers
+            Constraint::Max(1), // spacer
+            Constraint::Max(f.size().width - (editor.lines.len().to_string().len() as u16)), // editor
+            // content
+        ])
+        .split(full_layout[0]);
+    
+    let nums = (1..editor.lines.len()+1).collect_vec();
+    let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray();
 
-    if (editor.cursor.y as u16) < editor.scroll.0 {
-        editor.scroll.0 = editor.cursor.y as u16;
-    } else if (editor.cursor.y as u16) >= editor.scroll.0 + buffer_rect.height {
-        editor.scroll.0 = (editor.cursor.y as u16) - buffer_rect.height.saturating_sub(1);
-    }
-
-    let line_number_width = (editor.scroll.0 + buffer_rect.height)
-        .min(editor.lines.len() as u16)
-        .to_string()
-        .len() as u16
-        + 1;
-
-    buffer_rect.width = f.size().width - line_number_width;
-    buffer_rect.x += line_number_width;
-
-    let line_numbers = editor
-        .lines
-        .iter()
-        .enumerate()
-        .skip(editor.scroll.0 as usize)
-        .take(buffer_rect.height as usize)
-        .map(|(i, _)| format!("{}", i + 1));
-    let line_numbers = line_numbers.collect::<Vec<String>>().join("\n");
-    let line_numbers = Paragraph::new(line_numbers)
-        .wrap(Wrap { trim: false })
-        .dark_gray();
-    let mut line_numbers_rect = f.size();
-    line_numbers_rect.width = line_number_width;
-    line_numbers_rect.height = buffer_rect.height;
-    f.render_widget(line_numbers, line_numbers_rect);
-
-    f.set_cursor(
-        editor.cursor.x as u16 + (f.size().width - buffer_rect.width),
-        editor.cursor.y as u16 - editor.scroll.0,
-    );
-
-    let buffer_block = Paragraph::new(editor.lines.join("\n")).scroll(editor.scroll);
+    f.render_widget(lnum_widget, buffer_layout[0]);
+    f.render_widget(editor.widget(), buffer_layout[2]);
 
     let statusline_block = Paragraph::new(format!(
         "[{}] {}:{}",
@@ -53,16 +38,12 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     ))
     .on_red()
     .black();
-    let mut statusline_rect = f.size();
-    statusline_rect.height = 1;
-    statusline_rect.y = f.size().height - 2;
+    f.render_widget(statusline_block, full_layout[1]);
 
     let statusmessage_block = Paragraph::new(editor.status_message.clone());
-    let mut statusmessage_rect = f.size();
-    statusmessage_rect.height = 1;
-    statusmessage_rect.y = f.size().height - 1;
+    f.render_widget(statusmessage_block, full_layout[2]);
 
-    f.render_widget(buffer_block, buffer_rect);
-    f.render_widget(statusline_block, statusline_rect);
-    f.render_widget(statusmessage_block, statusmessage_rect);
+    let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
+    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize).clamp(0, full_layout[0].height as usize - 1);
+    f.set_cursor(cursor_x as u16, cursor_y as u16);
 }

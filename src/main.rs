@@ -1,4 +1,3 @@
-use core::panic;
 use std::{
     io::{self, stdout, Stderr, Stdout}, panic::{set_hook, take_hook}, path::PathBuf
 };
@@ -9,7 +8,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand,
 };
-use editor::{CursorMove, EditMode, Editor};
+use editor::{CurrentScreen, CursorMove, EditMode, Editor};
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
@@ -57,84 +56,104 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
 }
 
 fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
-    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-        editor.running = false;
-        return Ok(());
-    }
-    
-    match editor.mode {
-        EditMode::Normal => {
-            match key.code {
-                KeyCode::Char('j') | KeyCode::Down => editor.move_cursor(CursorMove::Down),
-                KeyCode::Char('k') | KeyCode::Up => editor.move_cursor(CursorMove::Up),
-                KeyCode::Char('h') | KeyCode::Left => editor.move_cursor(CursorMove::Left),
-                KeyCode::Char('l') | KeyCode::Right => editor.move_cursor(CursorMove::Right),
-                KeyCode::Char('H') | KeyCode::Char('^') => {
-                    editor.move_cursor(CursorMove::LineBegin)
+    match editor.current_screen {
+        CurrentScreen::Editing => {
+
+            if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
+                if editor.is_dirty()? {
+                    editor.current_screen = CurrentScreen::Exiting;
+                    return Ok(());
                 }
-                KeyCode::Char('L') | KeyCode::Char('$') => {
-                    editor.move_cursor(CursorMove::LineEnd)
-                }
-                KeyCode::Char('w') => editor.move_cursor(CursorMove::WordStartForward),
-                KeyCode::Char('b') => editor.move_cursor(CursorMove::WordStartBackward),
-                KeyCode::Char('e') => editor.move_cursor(CursorMove::WordEndForward),
-                // TODO: This should be dd so find some sort of chord implementation
-                KeyCode::Char('i') => editor.mode = EditMode::Insert,
-                KeyCode::Char('I') => {
-                    editor.move_cursor(CursorMove::LineBegin);
-                    // TODO: maybe i should just make a editor.insert_mode() function
-                    editor.mode = EditMode::Insert;
-                }
-                KeyCode::Char('a') => {
-                    editor.mode = EditMode::Insert;
-                    editor.move_cursor(CursorMove::Right);
-                }
-                KeyCode::Char('A') => {
-                    editor.mode = EditMode::Insert;
-                    editor.move_cursor(CursorMove::LineEnd);
-                }
-                KeyCode::Char('x') => editor.delete_char_at_cursor(),
-                KeyCode::Char('X') => editor.backspace_at_cursor(),
-                KeyCode::Char('d') => { editor.delete_line_at_cursor(); }
-                KeyCode::Char('s') => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) {
-                        editor.save()?;
+
+                editor.running = false;
+                return Ok(());
+
+            }
+
+            match editor.mode {
+                EditMode::Normal => {
+                    match key.code {
+                        KeyCode::Char('j') | KeyCode::Down => editor.move_cursor(CursorMove::Down),
+                        KeyCode::Char('k') | KeyCode::Up => editor.move_cursor(CursorMove::Up),
+                        KeyCode::Char('h') | KeyCode::Left => editor.move_cursor(CursorMove::Left),
+                        KeyCode::Char('l') | KeyCode::Right => editor.move_cursor(CursorMove::Right),
+                        KeyCode::Char('H') | KeyCode::Char('^') => {
+                            editor.move_cursor(CursorMove::LineBegin)
+                        }
+                        KeyCode::Char('L') | KeyCode::Char('$') => {
+                            editor.move_cursor(CursorMove::LineEnd)
+                        }
+                        KeyCode::Char('w') => editor.move_cursor(CursorMove::WordStartForward),
+                        KeyCode::Char('b') => editor.move_cursor(CursorMove::WordStartBackward),
+                        KeyCode::Char('e') => editor.move_cursor(CursorMove::WordEndForward),
+                        // TODO: This should be dd so find some sort of chord implementation
+                        KeyCode::Char('i') => editor.mode = EditMode::Insert,
+                        KeyCode::Char('I') => {
+                            editor.move_cursor(CursorMove::LineBegin);
+                            // TODO: maybe i should just make a editor.insert_mode() function
+                            editor.mode = EditMode::Insert;
+                        }
+                        KeyCode::Char('a') => {
+                            editor.mode = EditMode::Insert;
+                            editor.move_cursor(CursorMove::Right);
+                        }
+                        KeyCode::Char('A') => {
+                            editor.mode = EditMode::Insert;
+                            editor.move_cursor(CursorMove::LineEnd);
+                        }
+                        KeyCode::Char('x') => editor.delete_char_at_cursor(),
+                        KeyCode::Char('X') => editor.backspace_at_cursor(),
+                        KeyCode::Char('d') => { editor.delete_line_at_cursor(); }
+                        KeyCode::Char('s') => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                editor.save()?;
+                            }
+                        }
+                        KeyCode::Char('o') => editor.newline_under_cursor(),
+                        KeyCode::Char('O') => editor.newline_above_cursor(),
+                        _ => (),
                     }
                 }
-                KeyCode::Char('o') => editor.newline_under_cursor(),
-                KeyCode::Char('O') => editor.newline_above_cursor(),
-                _ => (),
+                EditMode::Insert => {
+                    if key.modifiers.contains(KeyModifiers::CONTROL)
+                    && key.code == KeyCode::Char('c')
+                    {
+                        editor.mode = EditMode::Normal;
+                        editor.move_cursor(CursorMove::Left);
+                        return Ok(());
+                    }
+                    match key.code {
+                        KeyCode::Down => editor.move_cursor(CursorMove::Down),
+                        KeyCode::Up => editor.move_cursor(CursorMove::Up),
+                        KeyCode::Left => editor.move_cursor(CursorMove::Left),
+                        KeyCode::Right => editor.move_cursor(CursorMove::Right),
+                        KeyCode::Char(val) => {
+                            editor.insert_char_at_cursor(val);
+                        }
+                        KeyCode::Enter => {
+                            editor.newline_at_cursor();
+                        }
+                        KeyCode::Backspace => {
+                            editor.backspace_at_cursor();
+                        }
+                        KeyCode::Esc => {
+                            editor.mode = EditMode::Normal;
+                            editor.move_cursor(CursorMove::Left);
+                        }
+                        _ => (),
+                    }
+                },
             }
-        }
-        EditMode::Insert => {
-            if key.modifiers.contains(KeyModifiers::CONTROL)
-            && key.code == KeyCode::Char('c')
-            {
-                editor.mode = EditMode::Normal;
-                editor.move_cursor(CursorMove::Left);
-                return Ok(());
+        },
+        CurrentScreen::Exiting => match key.code {
+            KeyCode::Char('y') => {
+                editor.running = false;
             }
-            match key.code {
-                KeyCode::Down => editor.move_cursor(CursorMove::Down),
-                KeyCode::Up => editor.move_cursor(CursorMove::Up),
-                KeyCode::Left => editor.move_cursor(CursorMove::Left),
-                KeyCode::Right => editor.move_cursor(CursorMove::Right),
-                KeyCode::Char(val) => {
-                    editor.insert_char_at_cursor(val);
-                }
-                KeyCode::Enter => {
-                    editor.newline_at_cursor();
-                }
-                KeyCode::Backspace => {
-                    editor.backspace_at_cursor();
-                }
-                KeyCode::Esc => {
-                    editor.mode = EditMode::Normal;
-                    editor.move_cursor(CursorMove::Left);
-                }
-                _ => (),
+            KeyCode::Char('n') | KeyCode::Char('q') => {
+                editor.current_screen = CurrentScreen::Editing; 
             }
-        }
+            _ => {}
+        },
     }
     Ok(())
 }
@@ -160,7 +179,8 @@ pub fn restore_terminal() -> Result<()> {
 pub fn install_panic_hook() {
     let original_hook = take_hook();
     set_hook(Box::new(move |panic_info| {
-        stdout().execute(LeaveAlternateScreen).unwrap();
+        io::stdout().execute(LeaveAlternateScreen).unwrap();
+        io::stdout().execute(DisableMouseCapture).unwrap();
         disable_raw_mode().unwrap();
         original_hook(panic_info);
     }));

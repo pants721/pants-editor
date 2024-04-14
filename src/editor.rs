@@ -40,6 +40,13 @@ impl Display for EditMode {
 }
 
 #[derive(Default)]
+pub enum CurrentScreen {
+    #[default]
+    Editing,
+    Exiting,
+}
+
+#[derive(Default)]
 pub struct Editor<'a> {
     pub lines: Vec<String>,
     pub cursor: Cursor,
@@ -49,6 +56,7 @@ pub struct Editor<'a> {
     pub status_message: String,
     pub block: Option<Block<'a>>,
     pub running: bool,
+    pub current_screen: CurrentScreen,
 }
 
 impl<'a> Editor<'a> {
@@ -74,7 +82,6 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    // TODO: Add quit confirmation for unsaved
     pub fn save(&mut self) -> Result<()> {
         if self.filename.is_none() {
             self.status_message = "Filename not set".to_string();
@@ -272,5 +279,15 @@ impl<'a> Editor<'a> {
 
     pub fn char_at(&self, coords: (usize, usize)) -> Option<char> {
         self.lines.get(coords.1)?.chars().nth(coords.0)
+    }
+
+    pub fn is_dirty(&self) -> Result<bool> {
+        if let Some(filename) = &self.filename {
+            let disk_file_content = fs::read_to_string(filename)?;
+            
+            return Ok(self.lines.join("\n") != disk_file_content)
+        }
+
+        Err(anyhow!("Filename not set"))
     }
 }

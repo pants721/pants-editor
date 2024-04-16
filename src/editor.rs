@@ -1,13 +1,12 @@
 use std::{
     fmt::Display,
     fs,
-    path::{Path, PathBuf},
+    path::{PathBuf},
 };
 
 use anyhow::{anyhow, Result};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use itertools::Itertools;
-use ratatui::widgets::{Block, Widget};
+use ratatui::widgets::{Widget};
 
 use crate::{cursor::Cursor, renderer::Renderer, word};
 

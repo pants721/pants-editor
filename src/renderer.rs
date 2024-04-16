@@ -1,5 +1,4 @@
 use crate::editor::Editor;
-use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
 pub struct Renderer<'a>(&'a mut Editor);
@@ -11,7 +10,7 @@ impl<'a> Renderer<'a> {
 }
 
 impl<'a> Widget for Renderer<'a> {
-    fn render(mut self, area: Rect, buf: &mut Buffer)
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
@@ -21,7 +20,7 @@ impl<'a> Widget for Renderer<'a> {
             self.0.scroll.0 = (self.0.cursor.y as u16) - area.height.saturating_sub(1);
         }
         
-        let mut lines = self
+        let lines = self
             .0
             .lines
             .join("\n");

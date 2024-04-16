@@ -4,7 +4,7 @@ use ratatui::{
     widgets::*,
 };
 
-use crate::editor::{self, CurrentScreen, Editor};
+use crate::editor::{CurrentScreen, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let full_layout = Layout::default()

@@ -1,8 +1,8 @@
 use std::{
-    io::{self, stdout, Stderr, Stdout}, panic::{set_hook, take_hook}, path::PathBuf
+    io::{self, stdout}, panic::{set_hook, take_hook}
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -90,7 +90,6 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('i') => editor.mode = EditMode::Insert,
                         KeyCode::Char('I') => {
                             editor.move_cursor(CursorMove::LineBegin);
-                            // TODO: maybe i should just make a editor.insert_mode() function
                             editor.mode = EditMode::Insert;
                         }
                         KeyCode::Char('a') => {
@@ -164,7 +163,7 @@ pub fn init_terminal() -> Result<Terminal<impl Backend>> {
     execute!(stderr, EnterAlternateScreen, EnableMouseCapture)?;
 
     let backend = CrosstermBackend::new(stdout());
-    let mut terminal = Terminal::new(backend)?;
+    let terminal = Terminal::new(backend)?;
     
     Ok(terminal) 
 }

@@ -47,21 +47,22 @@ pub enum CurrentScreen {
 }
 
 #[derive(Default)]
-pub struct Editor<'a> {
+pub struct Editor {
     pub lines: Vec<String>,
     pub cursor: Cursor,
     pub mode: EditMode,
     // TODO: Make this absolute path
     pub filename: Option<PathBuf>,
+    pub scroll: (u16, u16),
     pub status_message: String,
-    pub block: Option<Block<'a>>,
     pub running: bool,
     pub current_screen: CurrentScreen,
 }
 
-impl<'a> Editor<'a> {
+impl Editor {
     pub fn new() -> Self {
         Self {
+            lines: vec!["".to_string()],
             running: true,
             ..Default::default()
         }
@@ -97,7 +98,7 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    pub fn widget(&'a self)  -> impl Widget + 'a {
+    pub fn widget(&mut self)  -> impl Widget + '_ {
         Renderer::new(self)
     }
 
@@ -288,6 +289,6 @@ impl<'a> Editor<'a> {
             return Ok(self.lines.join("\n") != disk_file_content)
         }
 
-        Err(anyhow!("Filename not set"))
+        Ok(false)
     }
 }

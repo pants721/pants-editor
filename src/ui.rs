@@ -27,10 +27,15 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
         .split(full_layout[0]);
     
     let nums = (1..editor.lines.len()+1).collect_vec();
-    let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray();
+    f.render_widget(editor.widget(), buffer_layout[2]);
+    
+    let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray().scroll(editor.scroll);
 
     f.render_widget(lnum_widget, buffer_layout[0]);
-    f.render_widget(editor.widget(), buffer_layout[2]);
+
+    let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
+    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize).clamp(0, buffer_layout[2].height as usize - 1);
+    f.set_cursor(cursor_x as u16, cursor_y as u16);
 
     let statusline_block = Paragraph::new(format!(
         "[{}] {}:{}",
@@ -42,10 +47,6 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 
     let statusmessage_block = Paragraph::new(editor.status_message.clone());
     f.render_widget(statusmessage_block, full_layout[2]);
-
-    let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
-    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize).clamp(0, full_layout[0].height as usize - 1);
-    f.set_cursor(cursor_x as u16, cursor_y as u16);
 
     if let CurrentScreen::Exiting = editor.current_screen {
         let area = centered_rect(60, 25, f.size());

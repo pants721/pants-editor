@@ -42,7 +42,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 
     let statusline_block = Paragraph::new(format!(
         "[{}] {}:{}",
-        editor.mode, editor.cursor.x, editor.cursor.y
+        editor.mode, editor.cursor.x + 1, editor.cursor.y + 1
     )).style(Style::default().bg(theme.statusline_bg).fg(theme.statusline_fg));
     f.render_widget(statusline_block, full_layout[1]);
 

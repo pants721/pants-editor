@@ -4,7 +4,7 @@ use ratatui::{
     widgets::*,
 };
 
-use crate::editor::{CurrentScreen, Editor};
+use crate::editor::{CurrentScreen, EditMode, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let full_layout = Layout::default()
@@ -45,8 +45,13 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     .black();
     f.render_widget(statusline_block, full_layout[1]);
 
-    let statusmessage_block = Paragraph::new(editor.status_message.clone());
-    f.render_widget(statusmessage_block, full_layout[2]);
+    if editor.mode == EditMode::Command {
+        let statusmessage_block = Paragraph::new(":".to_string() + &editor.command);
+        f.render_widget(statusmessage_block, full_layout[2]);
+    } else {
+        let statusmessage_block = Paragraph::new(editor.status_message.clone());
+        f.render_widget(statusmessage_block, full_layout[2]);
+    }
 
     if let CurrentScreen::Exiting = editor.current_screen {
         let area = centered_rect(60, 25, f.size());

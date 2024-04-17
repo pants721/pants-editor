@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::widgets::{Widget};
 
-use crate::{cursor::Cursor, renderer::Renderer, word};
+use crate::{command::{Command, COMMAND_DICT}, cursor::Cursor, renderer::Renderer, word};
 
 pub enum CursorMove {
     Up,
@@ -27,6 +27,7 @@ pub enum EditMode {
     #[default]
     Normal,
     Insert,
+    Command,
 }
 
 impl Display for EditMode {
@@ -34,6 +35,7 @@ impl Display for EditMode {
         match self {
             EditMode::Normal => write!(f, "Normal"),
             EditMode::Insert => write!(f, "Insert"),
+            EditMode::Command => write!(f, "Command"),
         }
     }
 }
@@ -56,6 +58,7 @@ pub struct Editor {
     pub status_message: String,
     pub running: bool,
     pub current_screen: CurrentScreen,
+    pub command: String,
 }
 
 impl Editor {
@@ -275,6 +278,28 @@ impl Editor {
                 }
             }
         }
+    }
+
+    pub fn insert_char_in_command(&mut self, c: char) {
+        self.command.push(c);
+    }
+
+    pub fn backspace_char_in_command(&mut self) {
+        self.command.pop();
+    }
+
+    pub fn execute_current_command(&mut self) -> Result<()> {
+        let command = COMMAND_DICT.get(&self.command.as_str());
+
+        match command {
+            Some(c) => c.execute(self)?,
+            None => Command::GotoLine.execute(self)?,
+        }
+
+        self.command.clear();
+        self.mode = EditMode::Normal;
+
+        Ok(())
     }
 
     pub fn char_at(&self, coords: (usize, usize)) -> Option<char> {

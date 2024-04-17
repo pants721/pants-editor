@@ -18,6 +18,7 @@ mod editor;
 mod ui;
 mod word;
 mod renderer;
+mod command;
 
 fn main() -> Result<()> {
     install_panic_hook();
@@ -102,7 +103,20 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         }
                         KeyCode::Char('x') => editor.delete_char_at_cursor(),
                         KeyCode::Char('X') => editor.backspace_at_cursor(),
-                        KeyCode::Char('d') => { editor.delete_line_at_cursor(); }
+                        KeyCode::Char('u') => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                editor.scroll.0 = editor.scroll.0.saturating_sub(19);
+                                editor.cursor.y = editor.cursor.y.saturating_sub(19);
+                            }
+                        }
+                        KeyCode::Char('d') => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                editor.scroll.0 = (editor.scroll.0 + 19).clamp(0, editor.lines.len() as u16);
+                                editor.cursor.y = (editor.cursor.y + 19).clamp(0, editor.lines.len());
+                            } else {
+                                editor.delete_line_at_cursor(); 
+                            }
+                        }
                         KeyCode::Char('s') => {
                             if key.modifiers.contains(KeyModifiers::CONTROL) {
                                 editor.save()?;
@@ -110,6 +124,7 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         }
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
+                        KeyCode::Char(':') => editor.mode = EditMode::Command,
                         _ => (),
                     }
                 }
@@ -142,6 +157,20 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         _ => (),
                     }
                 },
+                EditMode::Command => {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                editor.mode = EditMode::Normal;
+                            } else {
+                                editor.insert_char_in_command(c);
+                            }
+                        }
+                        KeyCode::Backspace => editor.backspace_char_in_command(),
+                        KeyCode::Enter => editor.execute_current_command()?,
+                        _ => (),
+                    }
+                }
             }
         },
         CurrentScreen::Exiting => match key.code {

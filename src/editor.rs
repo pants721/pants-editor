@@ -10,6 +10,8 @@ use ratatui::widgets::Widget;
 
 use crate::{command::{Command, COMMAND_DICT}, config::{Settings, TabType}, cursor::Cursor, renderer::Renderer, search::Search, word};
 
+const MEDIUM_SCROLL: usize = 19;
+
 pub enum CursorMove {
     Up,
     Down,
@@ -319,8 +321,16 @@ impl Editor {
     }
 
     pub fn scroll_down(&mut self, amount: usize) {
-        self.scroll.0 = (self.scroll.0 + amount as u16).clamp(0, self.lines.len() as u16);
+        self.scroll.0 = (self.scroll.0 + amount as u16).clamp(0, self.lines.len() as u16 - 1);
         self.cursor.y = (self.cursor.y + amount).clamp(0, self.lines.len() - 1);
+    }
+
+    pub fn med_scroll_up(&mut self) {
+        self.scroll_up(MEDIUM_SCROLL);
+    }
+
+    pub fn med_scroll_down(&mut self) {
+        self.scroll_down(MEDIUM_SCROLL);
     }
 
     pub fn insert_char_in_command(&mut self, c: char) {

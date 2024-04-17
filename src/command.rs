@@ -62,7 +62,7 @@ impl Command {
             },
             Command::GotoLine => {
                 if editor.command.parse::<u32>().is_ok() {
-                    editor.cursor.y = editor.command.parse::<usize>()?.saturating_sub(1);
+                    editor.cursor.y = editor.command.parse::<usize>()?.saturating_sub(1).clamp(0, editor.lines.len() - 1);
                 }
                 Ok(())
             },

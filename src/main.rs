@@ -88,12 +88,10 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('k') | KeyCode::Up => editor.move_cursor(CursorMove::Up),
                         KeyCode::Char('h') | KeyCode::Left => editor.move_cursor(CursorMove::Left),
                         KeyCode::Char('l') | KeyCode::Right => editor.move_cursor(CursorMove::Right),
-                        KeyCode::Char('H') | KeyCode::Char('^') => {
-                            editor.move_cursor(CursorMove::LineBegin)
-                        }
-                        KeyCode::Char('L') | KeyCode::Char('$') => {
-                            editor.move_cursor(CursorMove::LineEnd)
-                        }
+                        KeyCode::Char('H') | KeyCode::Char('^') => editor.move_cursor(CursorMove::LineBegin),
+                        KeyCode::Char('L') | KeyCode::Char('$') => editor.move_cursor(CursorMove::LineEnd),
+                        KeyCode::Char('g') => editor.move_cursor(CursorMove::Start),
+                        KeyCode::Char('G') => editor.move_cursor(CursorMove::End),
                         KeyCode::Char('w') => editor.move_cursor(CursorMove::WordStartForward),
                         KeyCode::Char('b') => editor.move_cursor(CursorMove::WordStartBackward),
                         KeyCode::Char('e') => editor.move_cursor(CursorMove::WordEndForward),

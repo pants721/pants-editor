@@ -20,6 +20,9 @@ pub enum CursorMove {
     WordStartForward,
     WordStartBackward,
     WordEndForward,
+    Start,
+    End,
+    Point(usize, usize),
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -278,6 +281,17 @@ impl Editor {
                         None => self.cursor.x,
                     }
                 }
+            }
+            CursorMove::Start => {
+                self.cursor = (0, 0).into();
+            }
+            CursorMove::End => {
+                let last_line = self.lines.len().saturating_sub(1);
+                let last_line_len = self.lines.get(last_line).map(|l| l.len()).unwrap_or(0);
+                self.cursor = (last_line_len, last_line).into();
+            }
+            CursorMove::Point(x, y) => {
+                self.cursor = (x, y).into();
             }
         }
     }

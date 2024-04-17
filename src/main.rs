@@ -20,6 +20,8 @@ mod word;
 mod renderer;
 mod command;
 
+const MEDIUM_SCROLL: usize = 19;
+
 fn main() -> Result<()> {
     install_panic_hook();
     let mut terminal = init_terminal()?;
@@ -105,14 +107,12 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('X') => editor.backspace_at_cursor(),
                         KeyCode::Char('u') => {
                             if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                editor.scroll.0 = editor.scroll.0.saturating_sub(19);
-                                editor.cursor.y = editor.cursor.y.saturating_sub(19);
+                                editor.scroll_up(MEDIUM_SCROLL);
                             }
                         }
                         KeyCode::Char('d') => {
                             if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                editor.scroll.0 = (editor.scroll.0 + 19).clamp(0, editor.lines.len() as u16);
-                                editor.cursor.y = (editor.cursor.y + 19).clamp(0, editor.lines.len());
+                                editor.scroll_down(MEDIUM_SCROLL);
                             } else {
                                 editor.delete_line_at_cursor(); 
                             }

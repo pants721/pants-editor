@@ -253,6 +253,7 @@ impl Editor {
                 }
             }
             // XXX: At some point this should be replaced by a lexer of some sort
+            // TODO: Make this go next line
             CursorMove::WordStartForward => {
                 if let Some(line) = self.lines.get(self.cursor.y) {
                     self.cursor.x = match word::find_word_start_forward(line, self.cursor.x) {
@@ -278,6 +279,16 @@ impl Editor {
                 }
             }
         }
+    }
+
+    pub fn scroll_up(&mut self, amount: usize) {
+        self.scroll.0 = self.scroll.0.saturating_sub(amount as u16);
+        self.cursor.y = self.cursor.y.saturating_sub(amount);
+    }
+
+    pub fn scroll_down(&mut self, amount: usize) {
+        self.scroll.0 = (self.scroll.0 + amount as u16).clamp(0, self.lines.len() as u16);
+        self.cursor.y = (self.cursor.y + amount).clamp(0, self.lines.len() - 1);
     }
 
     pub fn insert_char_in_command(&mut self, c: char) {

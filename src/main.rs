@@ -160,6 +160,9 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                             editor.mode = EditMode::Normal;
                             editor.move_cursor(CursorMove::Left);
                         }
+                        KeyCode::Tab => {
+                            editor.insert_tab();
+                        }
                         _ => (),
                     }
                 },

@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::widgets::{Widget};
 
-use crate::{command::{Command, COMMAND_DICT}, config::Settings, cursor::Cursor, renderer::Renderer, word};
+use crate::{command::{Command, COMMAND_DICT}, config::{Settings, TabType}, cursor::Cursor, renderer::Renderer, word};
 
 pub enum CursorMove {
     Up,
@@ -198,6 +198,21 @@ impl Editor {
             self.lines.insert(self.cursor.y + 1, right.to_string());
             self.move_cursor(CursorMove::Down);
             self.move_cursor(CursorMove::LineBegin);
+        }
+    }
+
+    pub fn insert_tab(&mut self) {
+        if let Some(line) = self.lines.get_mut(self.cursor.y) {
+            match self.settings.tab_type {
+                TabType::Spaces(n) => {
+                    line.insert_str(self.cursor.x, &" ".repeat(n));
+                    self.cursor.x += n;
+                }
+                TabType::Tabs(n) => {
+                    line.insert_str(self.cursor.x, &"\t".repeat(n));
+                    self.cursor.x += n;
+                }
+            }
         }
     }
 

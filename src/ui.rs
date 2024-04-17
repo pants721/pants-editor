@@ -19,9 +19,9 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let buffer_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
-            Constraint::Max(editor.lines.len().to_string().len() as u16), // line numbers
+            Constraint::Max(line_number_width(editor) as u16), // line numbers
             Constraint::Max(1), // spacer
-            Constraint::Max(f.size().width - (editor.lines.len().to_string().len() as u16)), // editor
+            Constraint::Max(f.size().width - (line_number_width(editor) as u16)), // editor
             // content
         ])
         .split(full_layout[0]);
@@ -71,6 +71,10 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 
         f.render_widget(exit_paragraph, area);
     }
+}
+
+fn line_number_width(editor: &Editor) -> usize {
+    editor.lines.len().to_string().len() + 1
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

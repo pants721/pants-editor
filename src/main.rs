@@ -2,18 +2,21 @@ use std::{
     io::{self, stdout}, panic::{set_hook, take_hook}
 };
 
-use anyhow::{Result};
+use anyhow::{Context, Result};
+use config::Config;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand,
 };
 use editor::{CurrentScreen, CursorMove, EditMode, Editor};
+use figment::{providers::{Format, Toml}, Figment};
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
 
 mod cursor;
+mod config;
 mod editor;
 mod ui;
 mod word;
@@ -29,6 +32,11 @@ fn main() -> Result<()> {
     let args = std::env::args();
 
     let mut editor = Editor::new();
+    let config: Config = Figment::new()
+        .merge(Toml::file("pe.toml"))
+        .extract().context("Failed to load config")?;
+    editor.config = config;
+    
     if args.len() > 1 {
         editor.open(&args.collect_vec()[1])?;
     }

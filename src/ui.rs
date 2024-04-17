@@ -19,19 +19,20 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let buffer_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
-            Constraint::Max(line_number_width(editor) as u16), // line numbers
+            Constraint::Min(line_number_width(editor) as u16), // line numbers
             Constraint::Max(1), // spacer
-            Constraint::Max(f.size().width - (line_number_width(editor) as u16)), // editor
+            Constraint::Min(f.size().width - (line_number_width(editor) as u16)), // editor
             // content
         ])
         .split(full_layout[0]);
     
-    let nums = (1..editor.lines.len()+1).collect_vec();
-    f.render_widget(editor.widget(), buffer_layout[2]);
+    if editor.config.line_numbers {
+        let nums = (1..editor.lines.len()+1).collect_vec();
+        let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray().scroll(editor.scroll);
+        f.render_widget(lnum_widget, buffer_layout[0]);
+    }
     
-    let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray().scroll(editor.scroll);
-
-    f.render_widget(lnum_widget, buffer_layout[0]);
+    f.render_widget(editor.widget(), buffer_layout[2]);
 
     let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
     let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize).clamp(0, buffer_layout[2].height as usize - 1);
@@ -74,6 +75,10 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 }
 
 fn line_number_width(editor: &Editor) -> usize {
+    if !editor.config.line_numbers {
+        return 0;
+    }
+    
     editor.lines.len().to_string().len() + 1
 }
 

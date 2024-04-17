@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::widgets::{Widget};
 
-use crate::{command::{Command, COMMAND_DICT}, cursor::Cursor, renderer::Renderer, word};
+use crate::{command::{Command, COMMAND_DICT}, config::Config, cursor::Cursor, renderer::Renderer, word};
 
 pub enum CursorMove {
     Up,
@@ -59,6 +59,7 @@ pub struct Editor {
     pub running: bool,
     pub current_screen: CurrentScreen,
     pub command: String,
+    pub config: Config,
 }
 
 impl Editor {

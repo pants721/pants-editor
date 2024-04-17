@@ -6,9 +6,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.81"
 crossterm = "0.27.0"
+figment = { version = "0.10.17", features = ["toml"] }
 itertools = "0.12.1"
 lazy_static = "1.4.0"
 ratatui = "0.26.1"
+serde = { version = "1.0.198", features = ["derive"] }
 
 [[bin]]
 name = "pe"

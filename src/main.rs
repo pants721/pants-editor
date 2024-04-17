@@ -3,7 +3,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use config::Config;
+use config::Settings;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -32,10 +32,10 @@ fn main() -> Result<()> {
     let args = std::env::args();
 
     let mut editor = Editor::new();
-    let config: Config = Figment::new()
+    let config: Settings = Figment::new()
         .merge(Toml::file("pe.toml"))
         .extract().context("Failed to load config")?;
-    editor.config = config;
+    editor.settings = config;
     
     if args.len() > 1 {
         editor.open(&args.collect_vec()[1])?;

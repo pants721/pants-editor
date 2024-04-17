@@ -25,7 +25,7 @@ impl<'a> Widget for Renderer<'a> {
             .lines
             .join("\n");
 
-        let text_block = Paragraph::new(lines).scroll(self.0.scroll);
+        let text_block = Paragraph::new(lines).scroll(self.0.scroll).style(self.0.settings.theme.primary_style());
 
         text_block.render(area, buf);
     }

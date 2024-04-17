@@ -7,6 +7,8 @@ use ratatui::{
 use crate::editor::{CurrentScreen, EditMode, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
+    let theme = editor.settings.theme;
+    
     let full_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -26,9 +28,9 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
         ])
         .split(full_layout[0]);
     
-    if editor.config.line_numbers {
+    if editor.settings.line_numbers {
         let nums = (1..editor.lines.len()+1).collect_vec();
-        let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).dark_gray().scroll(editor.scroll);
+        let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).style(theme.primary_style()).dark_gray().scroll(editor.scroll);
         f.render_widget(lnum_widget, buffer_layout[0]);
     }
     
@@ -41,9 +43,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let statusline_block = Paragraph::new(format!(
         "[{}] {}:{}",
         editor.mode, editor.cursor.x, editor.cursor.y
-    ))
-    .on_red()
-    .black();
+    )).style(Style::default().bg(theme.statusline_bg).fg(theme.statusline_fg));
     f.render_widget(statusline_block, full_layout[1]);
 
     if editor.mode == EditMode::Command {
@@ -63,7 +63,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 
         let exit_text = Text::styled(
             "Your changes are unsaved. Are you sure you would like to exit? (y/n)",
-            Style::default().fg(Color::Red),
+            theme.primary_style()
         );
         // the `trim: false` will stop the text from being cut off when over the edge of the block
         let exit_paragraph = Paragraph::new(exit_text)
@@ -75,7 +75,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 }
 
 fn line_number_width(editor: &Editor) -> usize {
-    if !editor.config.line_numbers {
+    if !editor.settings.line_numbers {
         return 0;
     }
     

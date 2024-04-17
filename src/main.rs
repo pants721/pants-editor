@@ -18,6 +18,7 @@ use ui::ui;
 mod cursor;
 mod config;
 mod editor;
+mod search;
 mod ui;
 mod word;
 mod renderer;
@@ -131,6 +132,9 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
                         KeyCode::Char(':') => editor.mode = EditMode::Command,
+                        KeyCode::Char('/') => editor.mode = EditMode::Search,
+                        KeyCode::Char('n') => editor.search_next(),
+                        KeyCode::Char('N') => editor.search_prev(),
                         _ => (),
                     }
                 }
@@ -167,16 +171,39 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                     }
                 },
                 EditMode::Command => {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+                        editor.mode = EditMode::Normal;
+                        return Ok(());
+                    }
+                    
                     match key.code {
+                        KeyCode::Esc => editor.mode = EditMode::Normal,
                         KeyCode::Char(c) => {
-                            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                editor.mode = EditMode::Normal;
-                            } else {
-                                editor.insert_char_in_command(c);
-                            }
+                            editor.insert_char_in_command(c);
                         }
                         KeyCode::Backspace => editor.backspace_char_in_command(),
                         KeyCode::Enter => editor.execute_current_command()?,
+                        _ => (),
+                    }
+                },
+                EditMode::Search => {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+                        editor.mode = EditMode::Normal;
+                        return Ok(());
+                    }
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            editor.insert_char_in_search(c);
+                        }
+                        KeyCode::Backspace => editor.backspace_char_in_search(),
+                        KeyCode::Enter => {
+                            editor.execute_current_search();
+                            editor.search.query.clear();
+                            editor.mode = EditMode::Normal;
+                            if let Some(first_result) = editor.search.results.first() {
+                                editor.cursor = (first_result.start, first_result.row).into();
+                            }
+                        }
                         _ => (),
                     }
                 }

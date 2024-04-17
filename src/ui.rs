@@ -49,6 +49,9 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     if editor.mode == EditMode::Command {
         let statusmessage_block = Paragraph::new(":".to_string() + &editor.command);
         f.render_widget(statusmessage_block, full_layout[2]);
+    } else if editor.mode == EditMode::Search {
+        let statusmessage_block = Paragraph::new("/".to_string() + &editor.search.query);
+        f.render_widget(statusmessage_block, full_layout[2]);
     } else {
         let statusmessage_block = Paragraph::new(editor.status_message.clone());
         f.render_widget(statusmessage_block, full_layout[2]);

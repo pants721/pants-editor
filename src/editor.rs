@@ -1,14 +1,14 @@
 use std::{
     fmt::Display,
     fs,
-    path::{PathBuf},
+    path::PathBuf,
 };
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
-use ratatui::widgets::{Widget};
+use ratatui::widgets::Widget;
 
-use crate::{command::{Command, COMMAND_DICT}, config::{Settings, TabType}, cursor::Cursor, renderer::Renderer, word};
+use crate::{command::{Command, COMMAND_DICT}, config::{Settings, TabType}, cursor::Cursor, renderer::Renderer, search::Search, word};
 
 pub enum CursorMove {
     Up,
@@ -31,6 +31,7 @@ pub enum EditMode {
     Normal,
     Insert,
     Command,
+    Search,
 }
 
 impl Display for EditMode {
@@ -39,6 +40,7 @@ impl Display for EditMode {
             EditMode::Normal => write!(f, "Normal"),
             EditMode::Insert => write!(f, "Insert"),
             EditMode::Command => write!(f, "Command"),
+            EditMode::Search => write!(f, "Search"),
         }
     }
 }
@@ -58,6 +60,7 @@ pub struct Editor {
     // TODO: Make this absolute path
     pub filename: Option<PathBuf>,
     pub scroll: (u16, u16),
+    pub search: Search,
     pub status_message: String,
     pub running: bool,
     pub current_screen: CurrentScreen,
@@ -340,6 +343,41 @@ impl Editor {
         self.mode = EditMode::Normal;
 
         Ok(())
+    }
+
+    pub fn insert_char_in_search(&mut self, c: char) {
+        self.search.query.push(c);
+    }
+
+    pub fn backspace_char_in_search(&mut self) {
+        self.search.query.pop();
+    }
+
+    pub fn execute_current_search(&mut self) {
+        self.search.search(&self.lines);
+    }
+
+    pub fn search_next(&mut self) {
+        if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
+            let next = if idx == self.search.results.len() - 1 {
+                &self.search.results[0]
+            } else {
+                &self.search.results[idx + 1]
+            };
+            self.cursor = (next.start, next.row).into();
+        }
+    }
+
+    pub fn search_prev(&mut self) {
+        if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
+            let prev = if idx == 0 {
+                &self.search.results[self.search.results.len() - 1]
+            } else {
+                &self.search.results[idx - 1]
+            };
+            
+            self.cursor = (prev.start, prev.row).into();
+        }
     }
 
     pub fn char_at(&self, coords: (usize, usize)) -> Option<char> {

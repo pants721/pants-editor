@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.81"
 crossterm = "0.27.0"
 figment = { version = "0.10.17", features = ["toml"] }
+home = "0.5.9"
 itertools = "0.12.1"
 lazy_static = "1.4.0"
 ratatui = { version = "0.26.1", features = ["serde"] }

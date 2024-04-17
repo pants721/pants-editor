@@ -21,6 +21,7 @@ use figment::{
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
+use util::pe_config_file_path;
 
 mod command;
 mod config;
@@ -37,7 +38,7 @@ fn main() -> Result<()> {
 
     let mut editor = Editor::new();
     let config: Settings = Figment::new()
-        .merge(Toml::file("pe.toml"))
+        .merge(Toml::file(pe_config_file_path()?))
         .extract()
         .context("Failed to load config")?;
     editor.settings = config;
@@ -76,16 +77,6 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
 fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
     match editor.current_screen {
         CurrentScreen::Editing => {
-            if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-                if editor.is_dirty()? {
-                    editor.current_screen = CurrentScreen::Exiting;
-                    return Ok(());
-                }
-
-                editor.running = false;
-                return Ok(());
-            }
-
             match editor.mode {
                 EditMode::Normal => {
                     match key.code {

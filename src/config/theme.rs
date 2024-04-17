@@ -2,6 +2,7 @@ use ratatui::style::{Color, Style};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Theme {
     pub bg: Color,
     pub fg: Color,

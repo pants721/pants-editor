@@ -15,11 +15,10 @@ impl Default for TabType {
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Settings {
     pub line_numbers: bool,
-    #[serde(default)]
     pub theme: Theme,
-    #[serde(default)]
     pub tab_type: TabType,
 }
 

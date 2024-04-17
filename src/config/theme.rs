@@ -12,8 +12,8 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            bg: Color::Black,
-            fg: Color::White,
+            bg: Color::Reset,
+            fg: Color::Reset,
             statusline_bg: Color::Red,
             statusline_fg: Color::Black,
         }

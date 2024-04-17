@@ -28,55 +28,36 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
         ])
         .split(full_layout[0]);
     
-    if editor.settings.line_numbers {
-        let nums = (1..editor.lines.len()+1).collect_vec();
-        let lnum_widget = Paragraph::new(nums.into_iter().join("\n")).style(theme.primary_style()).dark_gray().scroll(editor.scroll);
-        f.render_widget(lnum_widget, buffer_layout[0]);
-    }
-    
+    // Main text
     f.render_widget(editor.widget(), buffer_layout[2]);
+    
+    // Line numbers
+    if editor.settings.line_numbers {
+        f.render_widget(line_numbers(editor), buffer_layout[0]);
+    }
 
+    // Cursor
     let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
     let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize).clamp(0, buffer_layout[2].height as usize - 1);
     f.set_cursor(cursor_x as u16, cursor_y as u16);
 
-    let statusline_block = Paragraph::new(format!(
-        "[{}] {}:{}",
-        editor.mode, editor.cursor.x + 1, editor.cursor.y + 1
-    )).style(Style::default().bg(theme.statusline_bg).fg(theme.statusline_fg));
-    f.render_widget(statusline_block, full_layout[1]);
+    // Status stuff
+    f.render_widget(statusline(editor), full_layout[1]);
+    f.render_widget(statusmessage(editor), full_layout[2]);
 
-    if editor.mode == EditMode::Command {
-        let statusmessage_block = Paragraph::new(":".to_string() + &editor.command);
-        f.render_widget(statusmessage_block, full_layout[2]);
-    } else if editor.mode == EditMode::Search {
-        let statusmessage_block = Paragraph::new("/".to_string() + &editor.search.query);
-        f.render_widget(statusmessage_block, full_layout[2]);
-    } else {
-        let statusmessage_block = Paragraph::new(editor.status_message.clone());
-        f.render_widget(statusmessage_block, full_layout[2]);
-    }
-
+    // Exit popup
     if let CurrentScreen::Exiting = editor.current_screen {
         let area = centered_rect(60, 25, f.size());
         f.render_widget(Clear, area);
-        
-        let popup_block = Block::default()
-            .style(theme.primary_style())
-            .borders(Borders::ALL);
-
-        let exit_text = Text::styled(
-            "Your changes are unsaved. Are you sure you would like to exit? (y/n)",
-            theme.primary_style()
-        );
-        // the `trim: false` will stop the text from being cut off when over the edge of the block
-        let exit_paragraph = Paragraph::new(exit_text)
-            .block(popup_block)
-            .wrap(Wrap { trim: false });
-
-        f.render_widget(exit_paragraph, area);
+        f.render_widget(exit_popup(editor), area);
     }
 }
+
+fn line_numbers(editor: &Editor) -> Paragraph {
+    let nums = (1..editor.lines.len()+1).collect_vec();
+    Paragraph::new(nums.into_iter().join("\n")).style(editor.settings.theme.primary_style()).dark_gray().scroll(editor.scroll)
+}
+
 
 fn line_number_width(editor: &Editor) -> usize {
     if !editor.settings.line_numbers {
@@ -84,6 +65,34 @@ fn line_number_width(editor: &Editor) -> usize {
     }
     
     editor.lines.len().to_string().len() + 1
+}
+
+fn statusline(editor: &Editor) -> Paragraph {
+    Paragraph::new(format!(
+        "[{}] {}:{}",
+        editor.mode, editor.cursor.x + 1, editor.cursor.y + 1
+    )).style(Style::default().bg(editor.settings.theme.statusline_bg).fg(editor.settings.theme.statusline_fg))
+}
+
+fn statusmessage(editor: &Editor) -> Paragraph {
+    if editor.mode == EditMode::Command {
+        return Paragraph::new(":".to_string() + &editor.command);
+    } else if editor.mode == EditMode::Search {
+        return Paragraph::new("/".to_string() + &editor.search.query);
+    } else {
+        return Paragraph::new(editor.status_message.clone());
+    }
+}
+
+fn exit_popup(editor: &Editor) -> Paragraph {
+    let popup_block = Block::default()
+        .style(editor.settings.theme.primary_style())
+        .borders(Borders::ALL);
+
+    // the `trim: false` will stop the text from being cut off when over the edge of the block
+    return Paragraph::new("Your changes are unsaved. Are you sure you would like to exit? (y/n)")
+        .block(popup_block);
+    
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

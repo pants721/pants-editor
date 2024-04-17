@@ -59,6 +59,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
         f.render_widget(Clear, area);
         
         let popup_block = Block::default()
+            .style(theme.primary_style())
             .borders(Borders::ALL);
 
         let exit_text = Text::styled(

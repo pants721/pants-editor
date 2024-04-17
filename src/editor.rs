@@ -181,7 +181,6 @@ impl Editor {
 
     pub fn newline_above_cursor(&mut self) {
         self.lines.insert(self.cursor.y, "".to_string());
-        self.move_cursor(CursorMove::Up);
         self.mode = EditMode::Insert;
     }
 

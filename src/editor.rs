@@ -355,28 +355,40 @@ impl Editor {
 
     pub fn execute_current_search(&mut self) {
         self.search.search(&self.lines);
+        self.mode = EditMode::Normal;
+        if let Some(first_result) = self.search.results.first() {
+            self.cursor = (first_result.start, first_result.row).into();
+            if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
+                self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
+            }
+        }
     }
 
     pub fn search_next(&mut self) {
         if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
-            let next = if idx == self.search.results.len() - 1 {
-                &self.search.results[0]
+            let (idx, next) = if idx == self.search.results.len() - 1 {
+                let idx = 0;
+                (idx, &self.search.results[idx])
             } else {
-                &self.search.results[idx + 1]
+                let idx = idx + 1;
+                (idx, &self.search.results[idx])
             };
             self.cursor = (next.start, next.row).into();
+            self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
         }
     }
 
     pub fn search_prev(&mut self) {
         if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
-            let prev = if idx == 0 {
-                &self.search.results[self.search.results.len() - 1]
+            let (idx, prev) = if idx == 0 {
+                let idx = self.search.results.len() - 1;
+                (idx, &self.search.results[idx])
             } else {
-                &self.search.results[idx - 1]
+                let idx = idx - 1;
+                (idx, &self.search.results[idx])
             };
-            
             self.cursor = (prev.start, prev.row).into();
+            self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
         }
     }
 

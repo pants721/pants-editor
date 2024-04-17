@@ -132,7 +132,10 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
                         KeyCode::Char(':') => editor.mode = EditMode::Command,
-                        KeyCode::Char('/') => editor.mode = EditMode::Search,
+                        KeyCode::Char('/') => {
+                            editor.search.query.clear();
+                            editor.mode = EditMode::Search;
+                        }
                         KeyCode::Char('n') => editor.search_next(),
                         KeyCode::Char('N') => editor.search_prev(),
                         _ => (),
@@ -198,11 +201,6 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Backspace => editor.backspace_char_in_search(),
                         KeyCode::Enter => {
                             editor.execute_current_search();
-                            editor.search.query.clear();
-                            editor.mode = EditMode::Normal;
-                            if let Some(first_result) = editor.search.results.first() {
-                                editor.cursor = (first_result.start, first_result.row).into();
-                            }
                         }
                         _ => (),
                     }

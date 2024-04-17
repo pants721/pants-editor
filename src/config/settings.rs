@@ -9,14 +9,14 @@ pub enum TabType {
 }
 
 impl Default for TabType {
-   fn default() -> Self {
-       TabType::Spaces(4)
-   } 
+    fn default() -> Self {
+        TabType::Spaces(4)
+    }
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 pub struct Settings {
-    pub line_numbers: bool, 
+    pub line_numbers: bool,
     #[serde(default)]
     pub theme: Theme,
     #[serde(default)]

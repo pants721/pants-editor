@@ -1,14 +1,18 @@
-use std::{
-    fmt::Display,
-    fs,
-    path::PathBuf,
-};
+use std::{fmt::Display, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::widgets::Widget;
 
-use crate::{command::{Command, COMMAND_DICT}, config::{Settings, TabType}, cursor::Cursor, renderer::Renderer, search::Search, word};
+use crate::{
+    command::{Command, COMMAND_DICT},
+    config::{Settings, TabType},
+    cursor::Cursor,
+    renderer::Renderer,
+    search::Search,
+    util::is_executable,
+    word,
+};
 
 const MEDIUM_SCROLL: usize = 19;
 
@@ -24,7 +28,6 @@ pub enum CursorMove {
     WordEndForward,
     Start,
     End,
-    Point(usize, usize),
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -84,6 +87,10 @@ impl Editor {
         if !path.is_file() {
             return Err(anyhow!("Path is not file"));
         }
+        if is_executable(&path)? {
+            return Err(anyhow!("Cannot open executable"));
+        }
+
         let file_content = fs::read_to_string(&path)?;
         let lines = file_content
             .split('\n')
@@ -97,7 +104,7 @@ impl Editor {
     pub fn save(&mut self) -> Result<()> {
         if self.filename.is_none() {
             self.status_message = "Filename not set".to_string();
-            return Err(anyhow!("Filename not set"))
+            return Err(anyhow!("Filename not set"));
         }
 
         let path = self.filename.as_ref().unwrap();
@@ -109,7 +116,7 @@ impl Editor {
         Ok(())
     }
 
-    pub fn widget(&mut self)  -> impl Widget + '_ {
+    pub fn widget(&mut self) -> impl Widget + '_ {
         Renderer::new(self)
     }
 
@@ -309,9 +316,6 @@ impl Editor {
                 let last_line_len = self.lines.get(last_line).map(|l| l.len()).unwrap_or(0);
                 self.cursor = (last_line_len, last_line).into();
             }
-            CursorMove::Point(x, y) => {
-                self.cursor = (x, y).into();
-            }
         }
     }
 
@@ -368,14 +372,31 @@ impl Editor {
         self.mode = EditMode::Normal;
         if let Some(first_result) = self.search.results.first() {
             self.cursor = (first_result.start, first_result.row).into();
-            if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
-                self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
+            if let Some((idx, _)) = self
+                .search
+                .results
+                .iter()
+                .enumerate()
+                .find(|(_, r)| r.row == self.cursor.y)
+            {
+                self.status_message = format!(
+                    "/{} - [{}/{}]",
+                    self.search.query,
+                    idx + 1,
+                    self.search.results.len()
+                );
             }
         }
     }
 
     pub fn search_next(&mut self) {
-        if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
+        if let Some((idx, _)) = self
+            .search
+            .results
+            .iter()
+            .enumerate()
+            .find(|(_, r)| r.row == self.cursor.y)
+        {
             let (idx, next) = if idx == self.search.results.len() - 1 {
                 let idx = 0;
                 (idx, &self.search.results[idx])
@@ -384,12 +405,23 @@ impl Editor {
                 (idx, &self.search.results[idx])
             };
             self.cursor = (next.start, next.row).into();
-            self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
+            self.status_message = format!(
+                "/{} - [{}/{}]",
+                self.search.query,
+                idx + 1,
+                self.search.results.len()
+            );
         }
     }
 
     pub fn search_prev(&mut self) {
-        if let Some((idx, _)) = self.search.results.iter().enumerate().find(|(_, r)| r.row == self.cursor.y) {
+        if let Some((idx, _)) = self
+            .search
+            .results
+            .iter()
+            .enumerate()
+            .find(|(_, r)| r.row == self.cursor.y)
+        {
             let (idx, prev) = if idx == 0 {
                 let idx = self.search.results.len() - 1;
                 (idx, &self.search.results[idx])
@@ -398,7 +430,12 @@ impl Editor {
                 (idx, &self.search.results[idx])
             };
             self.cursor = (prev.start, prev.row).into();
-            self.status_message = format!("/{} - [{}/{}]", self.search.query, idx + 1, self.search.results.len());
+            self.status_message = format!(
+                "/{} - [{}/{}]",
+                self.search.query,
+                idx + 1,
+                self.search.results.len()
+            );
         }
     }
 
@@ -409,8 +446,8 @@ impl Editor {
     pub fn is_dirty(&self) -> Result<bool> {
         if let Some(filename) = &self.filename {
             let disk_file_content = fs::read_to_string(filename)?;
-            
-            return Ok(self.lines.join("\n") != disk_file_content)
+
+            return Ok(self.lines.join("\n") != disk_file_content);
         }
 
         Ok(false)

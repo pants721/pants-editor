@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use ratatui::style::{Color, Style};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 pub struct Theme {

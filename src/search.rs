@@ -12,13 +12,6 @@ pub struct SearchResult {
 }
 
 impl Search {
-    pub fn new() -> Self {
-        Self {
-            query: String::new(),
-            results: Vec::new(),
-        }
-    }
-
     pub fn search(&mut self, lines: &[String]) {
         self.results.clear();
         for (i, line) in lines.iter().enumerate() {

@@ -19,13 +19,12 @@ impl<'a> Widget for Renderer<'a> {
         } else if (self.0.cursor.y as u16) >= self.0.scroll.0 + area.height {
             self.0.scroll.0 = (self.0.cursor.y as u16) - area.height.saturating_sub(1);
         }
-        
-        let lines = self
-            .0
-            .lines
-            .join("\n");
 
-        let text_block = Paragraph::new(lines).scroll(self.0.scroll).style(self.0.settings.theme.primary_style());
+        let lines = self.0.lines.join("\n");
+
+        let text_block = Paragraph::new(lines)
+            .scroll(self.0.scroll)
+            .style(self.0.settings.theme.primary_style());
 
         text_block.render(area, buf);
     }

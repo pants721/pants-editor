@@ -1,54 +1,63 @@
 use std::{
-    io::{self, stdout}, panic::{set_hook, take_hook}
+    io::{self, stdout},
+    panic::{set_hook, take_hook},
 };
 
 use anyhow::{Context, Result};
 use config::Settings;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+    },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    ExecutableCommand,
 };
 use editor::{CurrentScreen, CursorMove, EditMode, Editor};
-use figment::{providers::{Format, Toml}, Figment};
+use figment::{
+    providers::{Format, Toml},
+    Figment,
+};
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ui::ui;
 
-mod cursor;
+mod command;
 mod config;
+mod cursor;
 mod editor;
+mod renderer;
 mod search;
 mod ui;
+mod util;
 mod word;
-mod renderer;
-mod command;
 
 fn main() -> Result<()> {
-    install_panic_hook();
-    let mut terminal = init_terminal()?;
-
     let args = std::env::args();
 
     let mut editor = Editor::new();
     let config: Settings = Figment::new()
         .merge(Toml::file("pe.toml"))
-        .extract().context("Failed to load config")?;
+        .extract()
+        .context("Failed to load config")?;
     editor.settings = config;
-    
+
     if args.len() > 1 {
         editor.open(&args.collect_vec()[1])?;
     }
+
+    install_panic_hook();
+    let mut terminal = init_terminal()?;
 
     while editor.running {
         terminal.draw(|f| {
             ui(f, &mut editor);
         })?;
         handle_event(&mut editor)?;
-    } 
+    }
 
     terminal.show_cursor()?;
-    restore_terminal()?; 
+    restore_terminal()?;
 
     Ok(())
 }
@@ -60,7 +69,6 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
         }
 
         handle_key(key, editor)?;
-        
     }
     Ok(())
 }
@@ -68,7 +76,6 @@ fn handle_event(editor: &mut Editor) -> Result<()> {
 fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
     match editor.current_screen {
         CurrentScreen::Editing => {
-
             if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
                 if editor.is_dirty()? {
                     editor.current_screen = CurrentScreen::Exiting;
@@ -77,7 +84,6 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
 
                 editor.running = false;
                 return Ok(());
-
             }
 
             match editor.mode {
@@ -86,9 +92,15 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('j') | KeyCode::Down => editor.move_cursor(CursorMove::Down),
                         KeyCode::Char('k') | KeyCode::Up => editor.move_cursor(CursorMove::Up),
                         KeyCode::Char('h') | KeyCode::Left => editor.move_cursor(CursorMove::Left),
-                        KeyCode::Char('l') | KeyCode::Right => editor.move_cursor(CursorMove::Right),
-                        KeyCode::Char('H') | KeyCode::Char('^') => editor.move_cursor(CursorMove::LineBegin),
-                        KeyCode::Char('L') | KeyCode::Char('$') => editor.move_cursor(CursorMove::LineEnd),
+                        KeyCode::Char('l') | KeyCode::Right => {
+                            editor.move_cursor(CursorMove::Right)
+                        }
+                        KeyCode::Char('H') | KeyCode::Char('^') => {
+                            editor.move_cursor(CursorMove::LineBegin)
+                        }
+                        KeyCode::Char('L') | KeyCode::Char('$') => {
+                            editor.move_cursor(CursorMove::LineEnd)
+                        }
                         KeyCode::Char('g') => editor.move_cursor(CursorMove::Start),
                         KeyCode::Char('G') => editor.move_cursor(CursorMove::End),
                         KeyCode::Char('w') => editor.move_cursor(CursorMove::WordStartForward),
@@ -119,7 +131,7 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                             if key.modifiers.contains(KeyModifiers::CONTROL) {
                                 editor.med_scroll_down();
                             } else {
-                                editor.delete_line_at_cursor(); 
+                                editor.delete_line_at_cursor();
                             }
                         }
                         KeyCode::Char('s') => {
@@ -141,7 +153,7 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                 }
                 EditMode::Insert => {
                     if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && key.code == KeyCode::Char('c')
+                        && key.code == KeyCode::Char('c')
                     {
                         editor.mode = EditMode::Normal;
                         editor.move_cursor(CursorMove::Left);
@@ -170,13 +182,15 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         }
                         _ => (),
                     }
-                },
+                }
                 EditMode::Command => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+                    if key.modifiers.contains(KeyModifiers::CONTROL)
+                        && key.code == KeyCode::Char('c')
+                    {
                         editor.mode = EditMode::Normal;
                         return Ok(());
                     }
-                    
+
                     match key.code {
                         KeyCode::Esc => editor.mode = EditMode::Normal,
                         KeyCode::Char(c) => {
@@ -186,9 +200,11 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Enter => editor.execute_current_command()?,
                         _ => (),
                     }
-                },
+                }
                 EditMode::Search => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+                    if key.modifiers.contains(KeyModifiers::CONTROL)
+                        && key.code == KeyCode::Char('c')
+                    {
                         editor.mode = EditMode::Normal;
                         return Ok(());
                     }
@@ -204,13 +220,13 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                     }
                 }
             }
-        },
+        }
         CurrentScreen::Exiting => match key.code {
             KeyCode::Char('y') => {
                 editor.running = false;
             }
             KeyCode::Char('n') | KeyCode::Char('q') => {
-                editor.current_screen = CurrentScreen::Editing; 
+                editor.current_screen = CurrentScreen::Editing;
             }
             _ => {}
         },
@@ -225,8 +241,8 @@ pub fn init_terminal() -> Result<Terminal<impl Backend>> {
 
     let backend = CrosstermBackend::new(stdout());
     let terminal = Terminal::new(backend)?;
-    
-    Ok(terminal) 
+
+    Ok(terminal)
 }
 
 pub fn restore_terminal() -> Result<()> {

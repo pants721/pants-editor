@@ -1,14 +1,9 @@
 use itertools::Itertools;
-use ratatui::{
-    prelude::*,
-    widgets::*,
-};
+use ratatui::{prelude::*, widgets::*};
 
 use crate::editor::{CurrentScreen, EditMode, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
-    let theme = editor.settings.theme;
-    
     let full_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -17,20 +12,20 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
             Constraint::Max(1), // notif area
         ])
         .split(f.size());
-    
+
     let buffer_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Min(line_number_width(editor) as u16), // line numbers
-            Constraint::Max(1), // spacer
+            Constraint::Max(1),                                // spacer
             Constraint::Min(f.size().width - (line_number_width(editor) as u16)), // editor
-            // content
+                                                               // content
         ])
         .split(full_layout[0]);
-    
+
     // Main text
     f.render_widget(editor.widget(), buffer_layout[2]);
-    
+
     // Line numbers
     if editor.settings.line_numbers {
         f.render_widget(line_numbers(editor), buffer_layout[0]);
@@ -38,7 +33,8 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 
     // Cursor
     let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
-    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize).clamp(0, buffer_layout[2].height as usize - 1);
+    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize)
+        .clamp(0, buffer_layout[2].height as usize - 1);
     f.set_cursor(cursor_x as u16, cursor_y as u16);
 
     // Status stuff
@@ -54,24 +50,33 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 }
 
 fn line_numbers(editor: &Editor) -> Paragraph {
-    let nums = (1..editor.lines.len()+1).collect_vec();
-    Paragraph::new(nums.into_iter().join("\n")).style(editor.settings.theme.primary_style()).dark_gray().scroll(editor.scroll)
+    let nums = (1..editor.lines.len() + 1).collect_vec();
+    Paragraph::new(nums.into_iter().join("\n"))
+        .style(editor.settings.theme.primary_style())
+        .dark_gray()
+        .scroll(editor.scroll)
 }
-
 
 fn line_number_width(editor: &Editor) -> usize {
     if !editor.settings.line_numbers {
         return 0;
     }
-    
+
     editor.lines.len().to_string().len() + 1
 }
 
 fn statusline(editor: &Editor) -> Paragraph {
     Paragraph::new(format!(
         "[{}] {}:{}",
-        editor.mode, editor.cursor.x + 1, editor.cursor.y + 1
-    )).style(Style::default().bg(editor.settings.theme.statusline_bg).fg(editor.settings.theme.statusline_fg))
+        editor.mode,
+        editor.cursor.x + 1,
+        editor.cursor.y + 1
+    ))
+    .style(
+        Style::default()
+            .bg(editor.settings.theme.statusline_bg)
+            .fg(editor.settings.theme.statusline_fg),
+    )
 }
 
 fn statusmessage(editor: &Editor) -> Paragraph {
@@ -92,7 +97,6 @@ fn exit_popup(editor: &Editor) -> Paragraph {
     // the `trim: false` will stop the text from being cut off when over the edge of the block
     return Paragraph::new("Your changes are unsaved. Are you sure you would like to exit? (y/n)")
         .block(popup_block);
-    
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

@@ -131,9 +131,12 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         }
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
-                        KeyCode::Char(':') => editor.mode = EditMode::Command,
+                        KeyCode::Char(':') => {
+                            editor.clear_command();
+                            editor.mode = EditMode::Command
+                        }
                         KeyCode::Char('/') => {
-                            editor.search.query.clear();
+                            editor.clear_search();
                             editor.mode = EditMode::Search;
                         }
                         KeyCode::Char('n') => editor.search_next(),

@@ -69,6 +69,7 @@ pub struct Editor {
     pub running: bool,
     pub current_screen: CurrentScreen,
     pub command: String,
+    pub command_x: usize,
     pub settings: Settings,
 }
 
@@ -322,6 +323,42 @@ impl Editor {
         }
     }
 
+    pub fn move_command_cursor(&mut self, cursor_move: CursorMove) {
+        match cursor_move {
+            CursorMove::Left => {
+                self.command_x = self.command_x.saturating_sub(1);
+            }
+            CursorMove::Right => {
+                self.command_x = (self.command_x + 1).clamp(0, self.command.len());
+            }
+            CursorMove::LineBegin => {
+                self.command_x = 0;
+            }
+            CursorMove::LineEnd => {
+                self.command_x = self.command.len();
+            }
+            _ => {}
+        }
+    }
+
+    pub fn move_search_cursor(&mut self, cursor_move: CursorMove) {
+        match cursor_move {
+            CursorMove::Left => {
+                self.command_x = self.command_x.saturating_sub(1);
+            }
+            CursorMove::Right => {
+                self.command_x = (self.command_x + 1).clamp(0, self.search.query.len());
+            }
+            CursorMove::LineBegin => {
+                self.command_x = 0;
+            }
+            CursorMove::LineEnd => {
+                self.command_x = self.search.query.len();
+            }
+            _ => {}
+        }
+    }
+
     pub fn scroll_up(&mut self, amount: usize) {
         self.scroll.0 = self.scroll.0.saturating_sub(amount as u16);
         self.cursor.y = self.cursor.y.saturating_sub(amount);
@@ -340,12 +377,29 @@ impl Editor {
         self.scroll_down(MEDIUM_SCROLL);
     }
 
+    pub fn clear_command(&mut self) {
+        self.command.clear();
+        self.command_x = 0;
+    }
+
     pub fn insert_char_in_command(&mut self, c: char) {
-        self.command.push(c);
+        if self.command_x == self.command.len() {
+            self.command.push(c);
+        } else {
+            self.command.insert(self.command_x, c);
+        }
+        
+        self.move_command_cursor(CursorMove::Right);
     }
 
     pub fn backspace_char_in_command(&mut self) {
-        self.command.pop();
+        if self.command_x == 0 {
+            self.mode = EditMode::Normal;
+            return;
+        }
+
+        self.command.remove(self.command_x - 1);
+        self.move_command_cursor(CursorMove::Left);
     }
 
     pub fn execute_current_command(&mut self) -> Result<()> {
@@ -356,18 +410,38 @@ impl Editor {
             None => Command::GotoLine.execute(self)?,
         }
 
-        self.command.clear();
+        self.clear_command();
         self.mode = EditMode::Normal;
 
         Ok(())
     }
 
+    // XXX: Search and command can really be combined
+
+    pub fn clear_search(&mut self) {
+        self.search.query.clear();
+        self.search.results.clear();
+        self.command_x = 0;
+    }
+
     pub fn insert_char_in_search(&mut self, c: char) {
-        self.search.query.push(c);
+        if self.command_x == self.search.query.len() {
+            self.search.query.push(c);
+        } else {
+            self.search.query.insert(self.command_x, c);
+        }
+        
+        self.move_search_cursor(CursorMove::Right);
     }
 
     pub fn backspace_char_in_search(&mut self) {
-        self.search.query.pop();
+        if self.command_x == 0 {
+            self.mode = EditMode::Normal;
+            return;
+        }
+
+        self.search.query.remove(self.command_x - 1);
+        self.move_search_cursor(CursorMove::Left);
     }
 
     pub fn execute_current_search(&mut self) {

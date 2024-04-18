@@ -362,7 +362,6 @@ impl Editor {
     }
 
     pub fn command_mode(&mut self) {
-        self.clear_command();
         self.command_history_idx = self.command_history.len();
         self.mode = EditMode::Command;
     }

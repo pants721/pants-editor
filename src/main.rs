@@ -132,6 +132,7 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
                         KeyCode::Char(':') => {
+                            editor.clear_command();
                             editor.command_mode();
                         }
                         KeyCode::Char('/') => {

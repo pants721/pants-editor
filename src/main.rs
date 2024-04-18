@@ -133,11 +133,15 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('O') => editor.newline_above_cursor(),
                         KeyCode::Char(':') => {
                             editor.clear_command();
-                            editor.mode = EditMode::Command
+                            editor.mode = EditMode::Command;
                         }
                         KeyCode::Char('/') => {
+                            editor.clear_command();
                             editor.clear_search();
-                            editor.mode = EditMode::Search;
+                            editor.command.push('/');
+                            // XXX: not great
+                            editor.command_x += 1;
+                            editor.mode = EditMode::Command;
                         }
                         KeyCode::Char('n') => editor.search_next(),
                         KeyCode::Char('N') => editor.search_prev(),
@@ -191,27 +195,11 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         }
                         KeyCode::Backspace => editor.backspace_char_in_command(),
                         KeyCode::Enter => editor.execute_current_command()?,
+                        KeyCode::Left => editor.move_command_cursor(CursorMove::Left),
+                        KeyCode::Right => editor.move_command_cursor(CursorMove::Right),
                         _ => (),
                     }
-                }
-                EditMode::Search => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL)
-                        && key.code == KeyCode::Char('c')
-                    {
-                        editor.mode = EditMode::Normal;
-                        return Ok(());
-                    }
-                    match key.code {
-                        KeyCode::Char(c) => {
-                            editor.insert_char_in_search(c);
-                        }
-                        KeyCode::Backspace => editor.backspace_char_in_search(),
-                        KeyCode::Enter => {
-                            editor.execute_current_search();
-                        }
-                        _ => (),
-                    }
-                }
+                },
             }
         }
         CurrentScreen::Exiting => match key.code {

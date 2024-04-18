@@ -37,7 +37,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
         let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize)
             .clamp(0, buffer_layout[2].height as usize - 1);
         f.set_cursor(cursor_x as u16, cursor_y as u16);
-    } else if editor.mode == EditMode::Command || editor.mode == EditMode::Search {
+    } else if editor.mode == EditMode::Command {
         let cursor_x = (editor.command_x + full_layout[2].x as usize) + 1;
         let cursor_y = full_layout[2].y as usize;
         f.set_cursor(cursor_x as u16, cursor_y as u16);
@@ -88,8 +88,6 @@ fn statusline(editor: &Editor) -> Paragraph {
 fn statusmessage(editor: &Editor) -> Paragraph {
     if editor.mode == EditMode::Command {
         return Paragraph::new(":".to_string() + &editor.command).style(editor.theme().primary_style());
-    } else if editor.mode == EditMode::Search {
-        return Paragraph::new("/".to_string() + &editor.search.query).style(editor.theme().primary_style());
     } else {
         return Paragraph::new(editor.status_message.clone()).style(editor.theme().primary_style());
     }

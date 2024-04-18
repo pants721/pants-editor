@@ -35,7 +35,6 @@ pub enum EditMode {
     Normal,
     Insert,
     Command,
-    Search,
 }
 
 impl Display for EditMode {
@@ -44,7 +43,6 @@ impl Display for EditMode {
             EditMode::Normal => write!(f, "Normal"),
             EditMode::Insert => write!(f, "Insert"),
             EditMode::Command => write!(f, "Command"),
-            EditMode::Search => write!(f, "Search"),
         }
     }
 }
@@ -341,24 +339,6 @@ impl Editor {
         }
     }
 
-    pub fn move_search_cursor(&mut self, cursor_move: CursorMove) {
-        match cursor_move {
-            CursorMove::Left => {
-                self.command_x = self.command_x.saturating_sub(1);
-            }
-            CursorMove::Right => {
-                self.command_x = (self.command_x + 1).clamp(0, self.search.query.len());
-            }
-            CursorMove::LineBegin => {
-                self.command_x = 0;
-            }
-            CursorMove::LineEnd => {
-                self.command_x = self.search.query.len();
-            }
-            _ => {}
-        }
-    }
-
     pub fn scroll_up(&mut self, amount: usize) {
         self.scroll.0 = self.scroll.0.saturating_sub(amount as u16);
         self.cursor.y = self.cursor.y.saturating_sub(amount);
@@ -403,49 +383,34 @@ impl Editor {
     }
 
     pub fn execute_current_command(&mut self) -> Result<()> {
-        let command = COMMAND_DICT.get(&self.command.as_str());
+        if self.command.starts_with('/') {
+            self.search.query = self.command.splitn(2, '/').collect_vec()[1].to_string();
+            self.execute_current_search();
+        } else {
+            let command = COMMAND_DICT.get(&self.command.as_str());
 
-        match command {
-            Some(c) => c.execute(self)?,
-            None => Command::GotoLine.execute(self)?,
+            match command {
+                Some(c) => c.execute(self)?,
+                None => Command::GotoLine.execute(self)?,
+            }
         }
-
         self.clear_command();
         self.mode = EditMode::Normal;
 
         Ok(())
     }
 
-    // XXX: Search and command can really be combined
-
     pub fn clear_search(&mut self) {
         self.search.query.clear();
-        self.search.results.clear();
         self.command_x = 0;
-    }
-
-    pub fn insert_char_in_search(&mut self, c: char) {
-        if self.command_x == self.search.query.len() {
-            self.search.query.push(c);
-        } else {
-            self.search.query.insert(self.command_x, c);
-        }
-        
-        self.move_search_cursor(CursorMove::Right);
-    }
-
-    pub fn backspace_char_in_search(&mut self) {
-        if self.command_x == 0 {
-            self.mode = EditMode::Normal;
-            return;
-        }
-
-        self.search.query.remove(self.command_x - 1);
-        self.move_search_cursor(CursorMove::Left);
     }
 
     pub fn execute_current_search(&mut self) {
         self.search.search(&self.lines);
+        if self.search.results.is_empty() {
+            self.status_message = "Pattern not found".to_string();
+            return;
+        }
         self.mode = EditMode::Normal;
         if let Some(first_result) = self.search.results.first() {
             self.cursor = (first_result.start, first_result.row).into();

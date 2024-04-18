@@ -20,6 +20,7 @@ pub struct Settings {
     pub line_numbers: bool,
     pub theme: Theme,
     pub tab_type: TabType,
+    pub color_column: Option<usize>,
 }
 
 impl Default for Settings {
@@ -28,6 +29,7 @@ impl Default for Settings {
             line_numbers: true,
             theme: Theme::default(),
             tab_type: TabType::default(),
+            color_column: None,
         }
     }
 }

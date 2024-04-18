@@ -8,6 +8,7 @@ pub struct Theme {
     pub fg: Color,
     pub statusline_bg: Color,
     pub statusline_fg: Color,
+    pub color_column: Color,
 }
 
 impl Default for Theme {
@@ -17,6 +18,7 @@ impl Default for Theme {
             fg: Color::Reset,
             statusline_bg: Color::Red,
             statusline_fg: Color::Black,
+            color_column: Color::Rgb(30, 30, 30),
         }
     }
 }

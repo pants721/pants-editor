@@ -27,5 +27,15 @@ impl<'a> Widget for Renderer<'a> {
             .style(self.0.settings.theme.primary_style());
 
         text_block.render(area, buf);
+
+        if let Some(col) = self.0.settings.color_column {
+            let col_rect = Rect::new(
+                col.saturating_sub(1) as u16, 
+                0, 
+                1, 
+                (self.0.lines.len() - self.0.scroll.0 as usize).clamp(0, area.height as usize) as u16
+            );
+            buf.set_style(col_rect, Style::new().bg(self.0.settings.theme.color_column));
+        }
     }
 }

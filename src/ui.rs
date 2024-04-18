@@ -81,11 +81,11 @@ fn statusline(editor: &Editor) -> Paragraph {
 
 fn statusmessage(editor: &Editor) -> Paragraph {
     if editor.mode == EditMode::Command {
-        return Paragraph::new(":".to_string() + &editor.command);
+        return Paragraph::new(":".to_string() + &editor.command).style(editor.settings.theme.primary_style());
     } else if editor.mode == EditMode::Search {
-        return Paragraph::new("/".to_string() + &editor.search.query);
+        return Paragraph::new("/".to_string() + &editor.search.query).style(editor.settings.theme.primary_style());
     } else {
-        return Paragraph::new(editor.status_message.clone());
+        return Paragraph::new(editor.status_message.clone()).style(editor.settings.theme.primary_style());
     }
 }
 

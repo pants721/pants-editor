@@ -27,7 +27,6 @@ mod command;
 mod config;
 mod cursor;
 mod editor;
-mod renderer;
 mod search;
 mod ui;
 mod util;

@@ -1,6 +1,4 @@
 # Pants' Editor
 **WORK IN PROGRESS**
 
-**WORK IN PROGRESS**
-
-**WORK IN PROGRESS**
+Modal vim-like editor. Passion project.

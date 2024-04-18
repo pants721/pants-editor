@@ -132,16 +132,14 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Char('o') => editor.newline_under_cursor(),
                         KeyCode::Char('O') => editor.newline_above_cursor(),
                         KeyCode::Char(':') => {
-                            editor.clear_command();
-                            editor.mode = EditMode::Command;
+                            editor.command_mode();
                         }
                         KeyCode::Char('/') => {
-                            editor.clear_command();
+                            editor.command_mode();
                             editor.clear_search();
                             editor.command.push('/');
                             // XXX: not great
                             editor.command_x += 1;
-                            editor.mode = EditMode::Command;
                         }
                         KeyCode::Char('n') => editor.search_next(),
                         KeyCode::Char('N') => editor.search_prev(),
@@ -197,6 +195,8 @@ fn handle_key(key: KeyEvent, editor: &mut Editor) -> Result<()> {
                         KeyCode::Enter => editor.execute_current_command()?,
                         KeyCode::Left => editor.move_command_cursor(CursorMove::Left),
                         KeyCode::Right => editor.move_command_cursor(CursorMove::Right),
+                        KeyCode::Up => editor.command_history_prev(),
+                        KeyCode::Down => editor.command_history_next(),
                         _ => (),
                     }
                 },

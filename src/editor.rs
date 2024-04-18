@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs, path::PathBuf};
+use std::{collections::VecDeque, fmt::Display, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
@@ -14,6 +14,8 @@ use crate::{
 };
 
 const MEDIUM_SCROLL: usize = 19;
+
+const COMMAND_HISTORY_MAX: usize = 100;
 
 pub enum CursorMove {
     Up,
@@ -68,6 +70,8 @@ pub struct Editor {
     pub current_screen: CurrentScreen,
     pub command: String,
     pub command_x: usize,
+    pub command_history: Vec<String>,
+    pub command_history_idx: usize,
     pub settings: Settings,
 }
 
@@ -357,6 +361,12 @@ impl Editor {
         self.scroll_down(MEDIUM_SCROLL);
     }
 
+    pub fn command_mode(&mut self) {
+        self.clear_command();
+        self.command_history_idx = self.command_history.len();
+        self.mode = EditMode::Command;
+    }
+
     pub fn clear_command(&mut self) {
         self.command.clear();
         self.command_x = 0;
@@ -383,6 +393,7 @@ impl Editor {
     }
 
     pub fn execute_current_command(&mut self) -> Result<()> {
+        self.status_message.clear();
         if self.command.starts_with('/') {
             self.search.query = self.command.splitn(2, '/').collect_vec()[1].to_string();
             self.execute_current_search();
@@ -394,10 +405,34 @@ impl Editor {
                 None => Command::GotoLine.execute(self)?,
             }
         }
+        self.command_history_add(self.command.clone());
         self.clear_command();
         self.mode = EditMode::Normal;
 
         Ok(())
+    }
+
+    pub fn command_history_add(&mut self, command: String) {
+        if self.command_history.len() == COMMAND_HISTORY_MAX {
+            self.command_history.pop();
+        }
+
+        self.command_history.push(command);
+    }
+
+    pub fn command_history_prev(&mut self) {
+        if let Some(command) = self.command_history.get(self.command_history_idx.saturating_sub(1)) {
+            self.command_history_idx = self.command_history_idx.saturating_sub(1);
+            self.command = command.clone();
+            self.command_x = self.command.len();
+        }
+    }
+
+    pub fn command_history_next(&mut self) {
+        if let Some(command) = self.command_history.get(self.command_history_idx.saturating_add(1)) {
+            self.command = command.clone();
+            self.command_x = self.command.len();
+        }
     }
 
     pub fn clear_search(&mut self) {

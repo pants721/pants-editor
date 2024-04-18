@@ -24,7 +24,7 @@ impl<'a> Widget for Renderer<'a> {
 
         let text_block = Paragraph::new(lines)
             .scroll(self.0.scroll)
-            .style(self.0.settings.theme.primary_style());
+            .style(self.0.theme().primary_style());
 
         text_block.render(area, buf);
 
@@ -35,7 +35,7 @@ impl<'a> Widget for Renderer<'a> {
                 1, 
                 (self.0.lines.len() - self.0.scroll.0 as usize).clamp(0, area.height as usize) as u16
             );
-            buf.set_style(col_rect, Style::new().bg(self.0.settings.theme.color_column));
+            buf.set_style(col_rect, Style::new().bg(self.0.theme().color_column));
         }
     }
 }

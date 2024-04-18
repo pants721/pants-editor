@@ -52,7 +52,7 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 fn line_numbers(editor: &Editor) -> Paragraph {
     let nums = (1..editor.lines.len() + 1).collect_vec();
     Paragraph::new(nums.into_iter().join("\n"))
-        .style(editor.settings.theme.primary_style())
+        .style(editor.theme().primary_style())
         .dark_gray()
         .scroll(editor.scroll)
 }
@@ -74,24 +74,24 @@ fn statusline(editor: &Editor) -> Paragraph {
     ))
     .style(
         Style::default()
-            .bg(editor.settings.theme.statusline_bg)
-            .fg(editor.settings.theme.statusline_fg),
+            .bg(editor.theme().statusline_bg)
+            .fg(editor.theme().statusline_fg),
     )
 }
 
 fn statusmessage(editor: &Editor) -> Paragraph {
     if editor.mode == EditMode::Command {
-        return Paragraph::new(":".to_string() + &editor.command).style(editor.settings.theme.primary_style());
+        return Paragraph::new(":".to_string() + &editor.command).style(editor.theme().primary_style());
     } else if editor.mode == EditMode::Search {
-        return Paragraph::new("/".to_string() + &editor.search.query).style(editor.settings.theme.primary_style());
+        return Paragraph::new("/".to_string() + &editor.search.query).style(editor.theme().primary_style());
     } else {
-        return Paragraph::new(editor.status_message.clone()).style(editor.settings.theme.primary_style());
+        return Paragraph::new(editor.status_message.clone()).style(editor.theme().primary_style());
     }
 }
 
 fn exit_popup(editor: &Editor) -> Paragraph {
     let popup_block = Block::default()
-        .style(editor.settings.theme.primary_style())
+        .style(editor.theme().primary_style())
         .borders(Borders::ALL);
 
     // the `trim: false` will stop the text from being cut off when over the edge of the block

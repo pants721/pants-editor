@@ -6,7 +6,7 @@ use ratatui::widgets::Widget;
 
 use crate::{
     command::{Command, COMMAND_DICT},
-    config::{Settings, TabType},
+    config::{theme::Theme, Settings, TabType},
     cursor::Cursor,
     renderer::Renderer,
     search::Search,
@@ -118,6 +118,10 @@ impl Editor {
 
     pub fn widget(&mut self) -> impl Widget + '_ {
         Renderer::new(self)
+    }
+
+    pub fn theme(&self) -> Theme {
+        self.settings.theme
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {

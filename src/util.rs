@@ -1,4 +1,4 @@
-use std::{os::unix::fs::PermissionsExt, path::Path};
+use std::{os::unix::fs::PermissionsExt, path::{Path, PathBuf}};
 
 use anyhow::{anyhow, Result};
 use home::home_dir;
@@ -10,9 +10,9 @@ pub fn is_executable(path: &Path) -> Result<bool> {
     Ok(permissions.mode() & 0o111 != 0)
 }
 
-pub fn pe_config_file_path() -> Result<String> {
+pub fn pe_config_file_path() -> Result<PathBuf> {
     let home = home_dir().ok_or_else(|| anyhow!("Failed to get home directory"))?;
     let path = home.join(".config").join("pe").join("config.toml");
 
-    Ok(path.to_string_lossy().to_string())
+    Ok(path)
 }

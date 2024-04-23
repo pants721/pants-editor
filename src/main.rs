@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use cli::Cli;
 use config::Settings;
 use crossterm::{
     event::{
@@ -20,9 +21,11 @@ use figment::{
 };
 use itertools::Itertools;
 use ratatui::prelude::*;
+use clap::Parser;
 use ui::ui;
 use util::pe_config_file_path;
 
+mod cli;
 mod command;
 mod config;
 mod cursor;
@@ -33,17 +36,22 @@ mod util;
 mod word;
 
 fn main() -> Result<()> {
-    let args = std::env::args();
+    let cli = Cli::parse();
 
-    let mut editor = Editor::new();
+    let config_path = match cli.config {
+        Some(cfg) => cfg,
+        None => pe_config_file_path()?,
+    };
+    
     let config: Settings = Figment::new()
-        .merge(Toml::file(pe_config_file_path()?))
+        .merge(Toml::file(config_path))
         .extract()
         .context("Failed to load config")?;
+    let mut editor = Editor::new();
     editor.settings = config;
 
-    if args.len() > 1 {
-        editor.open(&args.collect_vec()[1])?;
+    if let Some(file) = cli.file {
+        editor.open(&file)?;
     }
 
     install_panic_hook();

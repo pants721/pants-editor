@@ -13,6 +13,7 @@ itertools = "^0.12.1"
 lazy_static = "^1.4.0"
 ratatui = { version = "^0.26.1", features = ["serde"] }
 serde = { version = "^1.0.198", features = ["derive"] }
+syntect = "^5.2.0"
 
 [[bin]]
 name = "pe"

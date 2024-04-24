@@ -1,9 +1,11 @@
+
 #[derive(Default)]
 pub struct Search {
     pub query: String,
     pub results: Vec<SearchResult>,
 }
 
+#[allow(dead_code)]
 pub struct SearchResult {
     pub line: String,
     pub row: usize,

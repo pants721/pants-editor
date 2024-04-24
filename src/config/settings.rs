@@ -21,6 +21,7 @@ pub struct Settings {
     pub theme: Theme,
     pub tab_type: TabType,
     pub color_column: Option<usize>,
+    pub syntax: bool,
 }
 
 impl Default for Settings {
@@ -30,6 +31,7 @@ impl Default for Settings {
             theme: Theme::default(),
             tab_type: TabType::default(),
             color_column: None,
+            syntax: true,
         }
     }
 }

@@ -1,16 +1,11 @@
-use std::{collections::VecDeque, fmt::Display, fs, path::PathBuf};
+use std::{fmt::Display, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
 use crate::{
-    command::{Command, COMMAND_DICT},
-    config::{theme::Theme, Settings, TabType},
-    cursor::Cursor,
-    search::Search,
-    util::is_executable,
-    word,
+    command::{Command, COMMAND_DICT}, config::{theme::Theme, Settings, TabType}, cursor::Cursor, highlighter::{syntect_style_to_ratatui, SyntaxHighlighter}, search::Search, util::is_executable, word, SYNTAX_SET, THEME_SET
 };
 
 const MEDIUM_SCROLL: usize = 19;
@@ -73,6 +68,8 @@ pub struct Editor {
     pub command_history: Vec<String>,
     pub command_history_idx: usize,
     pub settings: Settings,
+    pub highlighter: SyntaxHighlighter<'static>,
+    pub highlighter_lines: Vec<Line<'static>>,
 }
 
 impl Editor {
@@ -99,6 +96,12 @@ impl Editor {
             .map(|s| s.to_string())
             .collect_vec();
         self.lines = lines;
+        if let Some(syntax) = SYNTAX_SET.find_syntax_for_file(&path)? {
+            let theme = &THEME_SET.themes["base16-mocha.dark"];
+            self.highlighter = SyntaxHighlighter::new(syntax.clone(), theme);
+        }
+        self.highlighter.initial_parse(self.lines.clone())?;
+        self.highlight()?;
         self.filename = Some(path);
         Ok(())
     }
@@ -118,12 +121,32 @@ impl Editor {
         Ok(())
     }
 
+    pub fn on_edit(&mut self) {
+        self.highlight().unwrap();
+    }
+
     pub fn widget(&mut self) -> impl Widget + '_ {
         Renderer::new(self)
     }
 
     pub fn theme(&self) -> Theme {
         self.settings.theme
+    }
+
+    pub fn highlight(&mut self) -> Result<()> {
+        let mut lines: Vec<Line> = Vec::new();
+        for line in self.lines.clone() {
+            let mut spans = Vec::new();
+            for (style, s) in self.highlighter.highlight_line(&line)? {
+                let rat_style = syntect_style_to_ratatui(&style);
+                spans.push(Span::styled(s, rat_style).bg(self.theme().bg));
+            }
+            lines.push(spans.into());
+        }
+
+        self.highlighter_lines = lines;
+
+        Ok(())
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {
@@ -136,6 +159,8 @@ impl Editor {
 
             self.move_cursor(CursorMove::Right);
         }
+
+        self.on_edit();
     }
 
     pub fn backspace_at_cursor(&mut self) {
@@ -164,6 +189,8 @@ impl Editor {
 
             self.move_cursor(CursorMove::Left);
         }
+
+        self.on_edit();
     }
 
     pub fn delete_char_at_cursor(&mut self) {
@@ -176,6 +203,8 @@ impl Editor {
         if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::Left);
         }
+
+        self.on_edit();
     }
 
     pub fn delete_line_at_cursor(&mut self) {
@@ -195,18 +224,24 @@ impl Editor {
         if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::LineEnd);
         }
+
+        self.on_edit();
     }
 
     pub fn newline_above_cursor(&mut self) {
         self.lines.insert(self.cursor.y, "".to_string());
         self.move_cursor(CursorMove::LineBegin);
         self.mode = EditMode::Insert;
+
+        self.on_edit();
     }
 
     pub fn newline_under_cursor(&mut self) {
         self.lines.insert(self.cursor.y + 1, "".to_string());
         self.move_cursor(CursorMove::Down);
         self.mode = EditMode::Insert;
+
+        self.on_edit();
     }
 
     pub fn newline_at_cursor(&mut self) {
@@ -218,6 +253,8 @@ impl Editor {
             self.move_cursor(CursorMove::Down);
             self.move_cursor(CursorMove::LineBegin);
         }
+
+        self.on_edit();
     }
 
     pub fn insert_tab(&mut self) {
@@ -233,6 +270,8 @@ impl Editor {
                 }
             }
         }
+
+        self.on_edit();
     }
 
     pub fn move_cursor(&mut self, cursor_move: CursorMove) {
@@ -423,14 +462,14 @@ impl Editor {
     pub fn command_history_prev(&mut self) {
         if let Some(command) = self.command_history.get(self.command_history_idx.saturating_sub(1)) {
             self.command_history_idx = self.command_history_idx.saturating_sub(1);
-            self.command = command.clone();
+            self.command.clone_from(command);
             self.command_x = self.command.len();
         }
     }
 
     pub fn command_history_next(&mut self) {
         if let Some(command) = self.command_history.get(self.command_history_idx.saturating_add(1)) {
-            self.command = command.clone();
+            self.command.clone_from(command);
             self.command_x = self.command.len();
         }
     }
@@ -531,11 +570,15 @@ impl Editor {
     }
 }
 
-struct Renderer<'a>(&'a mut Editor);
+struct Renderer<'a> {
+    editor: &'a mut Editor,
+}
 
 impl<'a> Renderer<'a> {
     pub fn new(editor: &'a mut Editor) -> Self {
-        Self(editor)
+        Self { 
+            editor,
+        }
     }
 }
 
@@ -544,28 +587,27 @@ impl<'a> Widget for Renderer<'a> {
     where
         Self: Sized,
     {
-        if (self.0.cursor.y as u16) < self.0.scroll.0 {
-            self.0.scroll.0 = self.0.cursor.y as u16;
-        } else if (self.0.cursor.y as u16) >= self.0.scroll.0 + area.height {
-            self.0.scroll.0 = (self.0.cursor.y as u16) - area.height.saturating_sub(1);
+        if (self.editor.cursor.y as u16) < self.editor.scroll.0 {
+            self.editor.scroll.0 = self.editor.cursor.y as u16;
+        } else if (self.editor.cursor.y as u16) >= self.editor.scroll.0 + area.height {
+            self.editor.scroll.0 = (self.editor.cursor.y as u16) - area.height.saturating_sub(1);
         }
 
-        let lines = self.0.lines.join("\n");
-
-        let text_block = Paragraph::new(lines)
-            .scroll(self.0.scroll)
-            .style(self.0.theme().primary_style());
+        // XXX: perf
+        let text_block = Paragraph::new(self.editor.highlighter_lines.clone())
+            .scroll(self.editor.scroll)
+            .style(self.editor.theme().primary_style());
 
         text_block.render(area, buf);
 
-        if let Some(col) = self.0.settings.color_column {
+        if let Some(col) = self.editor.settings.color_column {
             let col_rect = Rect::new(
                 col.saturating_sub(1) as u16, 
                 0, 
                 1, 
-                (self.0.lines.len() - self.0.scroll.0 as usize).clamp(0, area.height as usize) as u16
+                (self.editor.lines.len() - self.editor.scroll.0 as usize).clamp(0, area.height as usize) as u16
             );
-            buf.set_style(col_rect, Style::new().bg(self.0.theme().color_column));
+            buf.set_style(col_rect, Style::new().bg(self.editor.theme().color_column));
         }
     }
 }

@@ -1,11 +1,17 @@
-use std::{fmt::Display, fs, path::PathBuf};
+use std::{collections::VecDeque, fmt::Display, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
 use crate::{
-    command::{Command, COMMAND_DICT}, config::{theme::Theme, Settings, TabType}, cursor::Cursor, highlighter::{syntect_style_to_ratatui, SyntaxHighlighter}, search::Search, util::is_executable, word, SYNTAX_SET, THEME_SET
+    command::{Command, COMMAND_DICT},
+    config::{theme::Theme, Settings, TabType},
+    cursor::Cursor,
+    highlighter::{syntect_style_to_ratatui, SyntaxHighlighter},
+    search::Search,
+    util::is_executable,
+    word, SYNTAX_SET, THEME_SET,
 };
 
 const MEDIUM_SCROLL: usize = 19;
@@ -83,10 +89,10 @@ impl Editor {
 
     pub fn open(&mut self, path: &str) -> Result<()> {
         let path = PathBuf::from(path);
-        if !path.is_file() {
+        if path.exists() && !path.is_file() {
             return Err(anyhow!("Path is not file"));
         }
-        if is_executable(&path)? {
+        if path.exists() && is_executable(&path)? {
             return Err(anyhow!("Cannot open executable"));
         }
 
@@ -121,8 +127,11 @@ impl Editor {
         Ok(())
     }
 
+    // TODO: Change this to some sort of event queue system like
+    // self.queue_event(EventType::Edit(x, y, c))
     pub fn on_edit(&mut self) {
-        self.highlight().unwrap();
+        // self.highlight().unwrap();
+        self.highlight_after(self.cursor.y).unwrap();
     }
 
     pub fn widget(&mut self) -> impl Widget + '_ {
@@ -138,6 +147,26 @@ impl Editor {
         for line in self.lines.clone() {
             let mut spans = Vec::new();
             for (style, s) in self.highlighter.highlight_line(&line)? {
+                let rat_style = syntect_style_to_ratatui(&style);
+                spans.push(Span::styled(s, rat_style).bg(self.theme().bg));
+            }
+            lines.push(spans.into());
+        }
+
+        self.highlighter_lines = lines;
+
+        Ok(())
+    }
+
+    /// inclusive of row
+    pub fn highlight_after(&mut self, y: usize) -> Result<()> {
+        if self.highlighter_lines.is_empty() {
+            self.highlight()?;
+        }
+        let mut lines: Vec<Line> = self.highlighter_lines.get(0..y).unwrap().to_vec();
+        for line in self.lines.clone().iter().skip(y) {
+            let mut spans = Vec::new();
+            for (style, s) in self.highlighter.highlight_line(line)? {
                 let rat_style = syntect_style_to_ratatui(&style);
                 spans.push(Span::styled(s, rat_style).bg(self.theme().bg));
             }
@@ -417,7 +446,7 @@ impl Editor {
         } else {
             self.command.insert(self.command_x, c);
         }
-        
+
         self.move_command_cursor(CursorMove::Right);
     }
 
@@ -460,7 +489,10 @@ impl Editor {
     }
 
     pub fn command_history_prev(&mut self) {
-        if let Some(command) = self.command_history.get(self.command_history_idx.saturating_sub(1)) {
+        if let Some(command) = self
+            .command_history
+            .get(self.command_history_idx.saturating_sub(1))
+        {
             self.command_history_idx = self.command_history_idx.saturating_sub(1);
             self.command.clone_from(command);
             self.command_x = self.command.len();
@@ -468,7 +500,10 @@ impl Editor {
     }
 
     pub fn command_history_next(&mut self) {
-        if let Some(command) = self.command_history.get(self.command_history_idx.saturating_add(1)) {
+        if let Some(command) = self
+            .command_history
+            .get(self.command_history_idx.saturating_add(1))
+        {
             self.command.clone_from(command);
             self.command_x = self.command.len();
         }
@@ -576,9 +611,7 @@ struct Renderer<'a> {
 
 impl<'a> Renderer<'a> {
     pub fn new(editor: &'a mut Editor) -> Self {
-        Self { 
-            editor,
-        }
+        Self { editor }
     }
 }
 
@@ -602,10 +635,11 @@ impl<'a> Widget for Renderer<'a> {
 
         if let Some(col) = self.editor.settings.color_column {
             let col_rect = Rect::new(
-                col.saturating_sub(1) as u16, 
-                0, 
-                1, 
-                (self.editor.lines.len() - self.editor.scroll.0 as usize).clamp(0, area.height as usize) as u16
+                col.saturating_sub(1) as u16,
+                0,
+                1,
+                (self.editor.lines.len() - self.editor.scroll.0 as usize)
+                    .clamp(0, area.height as usize) as u16,
             );
             buf.set_style(col_rect, Style::new().bg(self.editor.theme().color_column));
         }

@@ -14,11 +14,13 @@ impl Default for TabType {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Settings {
     pub line_numbers: bool,
     pub theme: Theme,
+    #[serde(skip)]
+    pub syntect_theme: syntect::highlighting::Theme,
     pub tab_type: TabType,
     pub color_column: Option<usize>,
     pub syntax: bool,
@@ -29,6 +31,7 @@ impl Default for Settings {
         Self {
             line_numbers: true,
             theme: Theme::default(),
+            syntect_theme: Theme::default().into(),
             tab_type: TabType::default(),
             color_column: None,
             syntax: true,

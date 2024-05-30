@@ -80,8 +80,8 @@ fn statusline(editor: &Editor) -> Paragraph {
     ))
     .style(
         Style::default()
-            .bg(editor.theme().statusline_bg)
-            .fg(editor.theme().statusline_fg),
+            .bg(editor.theme().statusline_bg.into())
+            .fg(editor.theme().statusline_fg.into()),
     )
 }
 

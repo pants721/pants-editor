@@ -102,10 +102,9 @@ impl Editor {
             .map(|s| s.to_string())
             .collect_vec();
         self.lines = lines;
-        if let Some(syntax) = SYNTAX_SET.find_syntax_for_file(&path)? {
-            let theme = &THEME_SET.themes["base16-mocha.dark"];
-            self.highlighter = SyntaxHighlighter::new(syntax.clone(), theme);
-        }
+        // if let Some(syntax) = SYNTAX_SET.find_syntax_for_file(&path)? {
+        //     self.highlighter = SyntaxHighlighter::new(syntax.clone(), &self.settings.syntect_theme);
+        // }
         self.highlighter.initial_parse(self.lines.clone())?;
         self.highlight()?;
         self.filename = Some(path);
@@ -148,7 +147,7 @@ impl Editor {
             let mut spans = Vec::new();
             for (style, s) in self.highlighter.highlight_line(&line)? {
                 let rat_style = syntect_style_to_ratatui(&style);
-                spans.push(Span::styled(s, rat_style).bg(self.theme().bg));
+                spans.push(Span::styled(s, rat_style).bg(self.theme().bg.into()));
             }
             lines.push(spans.into());
         }
@@ -168,7 +167,7 @@ impl Editor {
             let mut spans = Vec::new();
             for (style, s) in self.highlighter.highlight_line(line)? {
                 let rat_style = syntect_style_to_ratatui(&style);
-                spans.push(Span::styled(s, rat_style).bg(self.theme().bg));
+                spans.push(Span::styled(s, rat_style).bg(self.theme().bg.into()));
             }
             lines.push(spans.into());
         }
@@ -641,7 +640,7 @@ impl<'a> Widget for Renderer<'a> {
                 (self.editor.lines.len() - self.editor.scroll.0 as usize)
                     .clamp(0, area.height as usize) as u16,
             );
-            buf.set_style(col_rect, Style::new().bg(self.editor.theme().color_column));
+            buf.set_style(col_rect, Style::new().bg(self.editor.theme().color_column.into()));
         }
     }
 }

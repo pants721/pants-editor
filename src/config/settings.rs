@@ -12,7 +12,7 @@ impl Default for TabType {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Settings {
     pub line_numbers: bool,

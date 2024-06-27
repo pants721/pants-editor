@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
-use crate::editor::{CurrentScreen, EditMode, Editor};
+use crate::editor::{CurrentScreen, Editor};
 
 pub fn ui(f: &mut Frame, editor: &mut Editor) {
     let full_layout = Layout::default()
@@ -32,16 +32,10 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
     }
 
     // Cursor
-    if editor.mode == EditMode::Insert || editor.mode == EditMode::Normal {
-        let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
-        let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize)
-            .clamp(0, buffer_layout[2].height as usize - 1);
-        f.set_cursor(cursor_x as u16, cursor_y as u16);
-    } else if editor.mode == EditMode::Command {
-        let cursor_x = (editor.command_x + full_layout[2].x as usize) + 1;
-        let cursor_y = full_layout[2].y as usize;
-        f.set_cursor(cursor_x as u16, cursor_y as u16);
-    }
+    let cursor_x = editor.cursor.x + buffer_layout[2].x as usize;
+    let cursor_y = (editor.cursor.y + buffer_layout[2].y as usize - editor.scroll.0 as usize)
+        .clamp(0, buffer_layout[2].height as usize - 1);
+    f.set_cursor(cursor_x as u16, cursor_y as u16);
 
     // Status stuff
     f.render_widget(statusline(editor), full_layout[1]);
@@ -58,7 +52,6 @@ pub fn ui(f: &mut Frame, editor: &mut Editor) {
 fn line_numbers(editor: &Editor) -> Paragraph {
     let nums = (1..editor.lines.len() + 1).collect_vec();
     Paragraph::new(nums.into_iter().join("\n"))
-        .style(editor.theme().primary_style())
         .dark_gray()
         .scroll(editor.scroll)
 }
@@ -73,29 +66,21 @@ fn line_number_width(editor: &Editor) -> usize {
 
 fn statusline(editor: &Editor) -> Paragraph {
     Paragraph::new(format!(
-        "[{}] {}:{}",
-        editor.mode,
+        "{}:{}",
         editor.cursor.x + 1,
         editor.cursor.y + 1
     ))
     .style(
         Style::default()
-            .bg(editor.theme().statusline_bg.into())
-            .fg(editor.theme().statusline_fg.into()),
     )
 }
 
 fn statusmessage(editor: &Editor) -> Paragraph {
-    if editor.mode == EditMode::Command {
-        return Paragraph::new(":".to_string() + &editor.command).style(editor.theme().primary_style());
-    } else {
-        return Paragraph::new(editor.status_message.clone()).style(editor.theme().primary_style());
-    }
+    Paragraph::new(editor.status_message.clone())
 }
 
-fn exit_popup(editor: &Editor) -> Paragraph {
+fn exit_popup(_editor: &Editor) -> Paragraph {
     let popup_block = Block::default()
-        .style(editor.theme().primary_style())
         .borders(Borders::ALL);
 
     // the `trim: false` will stop the text from being cut off when over the edge of the block

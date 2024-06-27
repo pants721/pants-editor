@@ -1,17 +1,15 @@
-use std::{collections::VecDeque, fmt::Display, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
 use crate::{
-    command::{Command, COMMAND_DICT},
-    config::{theme::Theme, Settings, TabType},
+    config::{Settings, TabType},
     cursor::Cursor,
-    highlighter::{syntect_style_to_ratatui, SyntaxHighlighter},
     search::Search,
     util::is_executable,
-    word, SYNTAX_SET, THEME_SET,
+    word,
 };
 
 const MEDIUM_SCROLL: usize = 19;
@@ -32,24 +30,6 @@ pub enum CursorMove {
     End,
 }
 
-#[derive(Default, PartialEq, Eq)]
-pub enum EditMode {
-    #[default]
-    Normal,
-    Insert,
-    Command,
-}
-
-impl Display for EditMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EditMode::Normal => write!(f, "Normal"),
-            EditMode::Insert => write!(f, "Insert"),
-            EditMode::Command => write!(f, "Command"),
-        }
-    }
-}
-
 #[derive(Default)]
 pub enum CurrentScreen {
     #[default]
@@ -61,7 +41,6 @@ pub enum CurrentScreen {
 pub struct Editor {
     pub lines: Vec<String>,
     pub cursor: Cursor,
-    pub mode: EditMode,
     // TODO: Make this absolute path
     pub filename: Option<PathBuf>,
     pub scroll: (u16, u16),
@@ -74,8 +53,6 @@ pub struct Editor {
     pub command_history: Vec<String>,
     pub command_history_idx: usize,
     pub settings: Settings,
-    pub highlighter: SyntaxHighlighter<'static>,
-    pub highlighter_lines: Vec<Line<'static>>,
 }
 
 impl Editor {
@@ -102,11 +79,6 @@ impl Editor {
             .map(|s| s.to_string())
             .collect_vec();
         self.lines = lines;
-        // if let Some(syntax) = SYNTAX_SET.find_syntax_for_file(&path)? {
-        //     self.highlighter = SyntaxHighlighter::new(syntax.clone(), &self.settings.syntect_theme);
-        // }
-        self.highlighter.initial_parse(self.lines.clone())?;
-        self.highlight()?;
         self.filename = Some(path);
         Ok(())
     }
@@ -126,55 +98,8 @@ impl Editor {
         Ok(())
     }
 
-    // TODO: Change this to some sort of event queue system like
-    // self.queue_event(EventType::Edit(x, y, c))
-    pub fn on_edit(&mut self) {
-        // self.highlight().unwrap();
-        self.highlight_after(self.cursor.y).unwrap();
-    }
-
     pub fn widget(&mut self) -> impl Widget + '_ {
         Renderer::new(self)
-    }
-
-    pub fn theme(&self) -> Theme {
-        self.settings.theme
-    }
-
-    pub fn highlight(&mut self) -> Result<()> {
-        let mut lines: Vec<Line> = Vec::new();
-        for line in self.lines.clone() {
-            let mut spans = Vec::new();
-            for (style, s) in self.highlighter.highlight_line(&line)? {
-                let rat_style = syntect_style_to_ratatui(&style);
-                spans.push(Span::styled(s, rat_style).bg(self.theme().bg.into()));
-            }
-            lines.push(spans.into());
-        }
-
-        self.highlighter_lines = lines;
-
-        Ok(())
-    }
-
-    /// inclusive of row
-    pub fn highlight_after(&mut self, y: usize) -> Result<()> {
-        if self.highlighter_lines.is_empty() {
-            self.highlight()?;
-        }
-        let mut lines: Vec<Line> = self.highlighter_lines.get(0..y).unwrap().to_vec();
-        for line in self.lines.clone().iter().skip(y) {
-            let mut spans = Vec::new();
-            for (style, s) in self.highlighter.highlight_line(line)? {
-                let rat_style = syntect_style_to_ratatui(&style);
-                spans.push(Span::styled(s, rat_style).bg(self.theme().bg.into()));
-            }
-            lines.push(spans.into());
-        }
-
-        self.highlighter_lines = lines;
-
-        Ok(())
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {
@@ -187,12 +112,10 @@ impl Editor {
 
             self.move_cursor(CursorMove::Right);
         }
-
-        self.on_edit();
     }
 
     pub fn backspace_at_cursor(&mut self) {
-        if self.cursor.x == 0 && self.mode == EditMode::Insert {
+        if self.cursor.x == 0 {
             if self.cursor.y == 0 {
                 return;
             }
@@ -217,8 +140,6 @@ impl Editor {
 
             self.move_cursor(CursorMove::Left);
         }
-
-        self.on_edit();
     }
 
     pub fn delete_char_at_cursor(&mut self) {
@@ -231,8 +152,6 @@ impl Editor {
         if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::Left);
         }
-
-        self.on_edit();
     }
 
     pub fn delete_line_at_cursor(&mut self) {
@@ -252,24 +171,16 @@ impl Editor {
         if self.char_at(self.cursor.into()).is_none() {
             self.move_cursor(CursorMove::LineEnd);
         }
-
-        self.on_edit();
     }
 
     pub fn newline_above_cursor(&mut self) {
         self.lines.insert(self.cursor.y, "".to_string());
         self.move_cursor(CursorMove::LineBegin);
-        self.mode = EditMode::Insert;
-
-        self.on_edit();
     }
 
     pub fn newline_under_cursor(&mut self) {
         self.lines.insert(self.cursor.y + 1, "".to_string());
         self.move_cursor(CursorMove::Down);
-        self.mode = EditMode::Insert;
-
-        self.on_edit();
     }
 
     pub fn newline_at_cursor(&mut self) {
@@ -281,8 +192,6 @@ impl Editor {
             self.move_cursor(CursorMove::Down);
             self.move_cursor(CursorMove::LineBegin);
         }
-
-        self.on_edit();
     }
 
     pub fn insert_tab(&mut self) {
@@ -298,8 +207,6 @@ impl Editor {
                 }
             }
         }
-
-        self.on_edit();
     }
 
     pub fn move_cursor(&mut self, cursor_move: CursorMove) {
@@ -328,7 +235,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.y)).is_some() {
                     self.cursor.x = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.y) {
-                    if computed == line.len() && self.mode == EditMode::Insert {
+                    if computed == line.len() {
                         self.cursor.x = computed;
                     }
                 }
@@ -339,7 +246,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.y)).is_some() {
                     self.cursor.x = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.y) {
-                    if computed == line.len() && self.mode == EditMode::Insert {
+                    if computed == line.len() {
                         self.cursor.x = computed;
                     }
                 }
@@ -349,11 +256,7 @@ impl Editor {
             }
             CursorMove::LineEnd => {
                 if let Some(line) = self.lines.get(self.cursor.y) {
-                    if self.mode == EditMode::Insert {
-                        self.cursor.x = line.len();
-                    } else {
-                        self.cursor.x = line.len().saturating_sub(1);
-                    }
+                    self.cursor.x = line.len();
                 }
             }
             // XXX: At some point this should be replaced by a lexer of some sort
@@ -429,85 +332,6 @@ impl Editor {
         self.scroll_down(MEDIUM_SCROLL);
     }
 
-    pub fn command_mode(&mut self) {
-        self.command_history_idx = self.command_history.len();
-        self.mode = EditMode::Command;
-    }
-
-    pub fn clear_command(&mut self) {
-        self.command.clear();
-        self.command_x = 0;
-    }
-
-    pub fn insert_char_in_command(&mut self, c: char) {
-        if self.command_x == self.command.len() {
-            self.command.push(c);
-        } else {
-            self.command.insert(self.command_x, c);
-        }
-
-        self.move_command_cursor(CursorMove::Right);
-    }
-
-    pub fn backspace_char_in_command(&mut self) {
-        if self.command_x == 0 {
-            self.mode = EditMode::Normal;
-            return;
-        }
-
-        self.command.remove(self.command_x - 1);
-        self.move_command_cursor(CursorMove::Left);
-    }
-
-    pub fn execute_current_command(&mut self) -> Result<()> {
-        self.status_message.clear();
-        if self.command.starts_with('/') {
-            self.search.query = self.command.splitn(2, '/').collect_vec()[1].to_string();
-            self.execute_current_search();
-        } else {
-            let command = COMMAND_DICT.get(&self.command.as_str());
-
-            match command {
-                Some(c) => c.execute(self)?,
-                None => Command::GotoLine.execute(self)?,
-            }
-        }
-        self.command_history_add(self.command.clone());
-        self.clear_command();
-        self.mode = EditMode::Normal;
-
-        Ok(())
-    }
-
-    pub fn command_history_add(&mut self, command: String) {
-        if self.command_history.len() == COMMAND_HISTORY_MAX {
-            self.command_history.pop();
-        }
-
-        self.command_history.push(command);
-    }
-
-    pub fn command_history_prev(&mut self) {
-        if let Some(command) = self
-            .command_history
-            .get(self.command_history_idx.saturating_sub(1))
-        {
-            self.command_history_idx = self.command_history_idx.saturating_sub(1);
-            self.command.clone_from(command);
-            self.command_x = self.command.len();
-        }
-    }
-
-    pub fn command_history_next(&mut self) {
-        if let Some(command) = self
-            .command_history
-            .get(self.command_history_idx.saturating_add(1))
-        {
-            self.command.clone_from(command);
-            self.command_x = self.command.len();
-        }
-    }
-
     pub fn clear_search(&mut self) {
         self.search.query.clear();
         self.command_x = 0;
@@ -519,7 +343,6 @@ impl Editor {
             self.status_message = "Pattern not found".to_string();
             return;
         }
-        self.mode = EditMode::Normal;
         if let Some(first_result) = self.search.results.first() {
             self.cursor = (first_result.start, first_result.row).into();
             if let Some((idx, _)) = self
@@ -626,21 +449,9 @@ impl<'a> Widget for Renderer<'a> {
         }
 
         // XXX: perf
-        let text_block = Paragraph::new(self.editor.highlighter_lines.clone())
-            .scroll(self.editor.scroll)
-            .style(self.editor.theme().primary_style());
+        let text_block = Paragraph::new(self.editor.lines.join("\n"))
+            .scroll(self.editor.scroll);
 
         text_block.render(area, buf);
-
-        if let Some(col) = self.editor.settings.color_column {
-            let col_rect = Rect::new(
-                col.saturating_sub(1) as u16,
-                0,
-                1,
-                (self.editor.lines.len() - self.editor.scroll.0 as usize)
-                    .clamp(0, area.height as usize) as u16,
-            );
-            buf.set_style(col_rect, Style::new().bg(self.editor.theme().color_column.into()));
-        }
     }
 }

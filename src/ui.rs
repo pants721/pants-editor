@@ -83,7 +83,6 @@ fn exit_popup(_editor: &Editor) -> Paragraph {
     let popup_block = Block::default()
         .borders(Borders::ALL);
 
-    // the `trim: false` will stop the text from being cut off when over the edge of the block
     return Paragraph::new("Your changes are unsaved. Are you sure you would like to exit? (y/n)")
         .block(popup_block);
 }

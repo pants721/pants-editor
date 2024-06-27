@@ -19,10 +19,8 @@ use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use lazy_static::lazy_static;
 use ratatui::prelude::*;
 use clap::Parser;
-use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 use ui::ui;
 use util::pe_config_file_path;
 
@@ -34,11 +32,6 @@ mod search;
 mod ui;
 mod util;
 mod word;
-
-lazy_static! {
-    pub static ref SYNTAX_SET: SyntaxSet = SyntaxSet::load_defaults_newlines();
-    pub static ref THEME_SET: ThemeSet = ThemeSet::load_defaults();
-}
 
 fn main() -> Result<()> {
     let cli = Cli::parse();

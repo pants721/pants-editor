@@ -1,11 +1,10 @@
-use std::{fmt::Display, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use ratatui::{prelude::*, widgets::*};
 
 use crate::{
-    command::{Command, COMMAND_DICT},
     config::{Settings, TabType},
     cursor::Cursor,
     search::Search,
@@ -31,24 +30,6 @@ pub enum CursorMove {
     End,
 }
 
-#[derive(Default, PartialEq, Eq)]
-pub enum EditMode {
-    #[default]
-    Normal,
-    Insert,
-    Command,
-}
-
-impl Display for EditMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EditMode::Normal => write!(f, "Normal"),
-            EditMode::Insert => write!(f, "Insert"),
-            EditMode::Command => write!(f, "Command"),
-        }
-    }
-}
-
 #[derive(Default)]
 pub enum CurrentScreen {
     #[default]
@@ -60,7 +41,6 @@ pub enum CurrentScreen {
 pub struct Editor {
     pub lines: Vec<String>,
     pub cursor: Cursor,
-    pub mode: EditMode,
     // TODO: Make this absolute path
     pub filename: Option<PathBuf>,
     pub scroll: (u16, u16),
@@ -135,7 +115,7 @@ impl Editor {
     }
 
     pub fn backspace_at_cursor(&mut self) {
-        if self.cursor.x == 0 && self.mode == EditMode::Insert {
+        if self.cursor.x == 0 {
             if self.cursor.y == 0 {
                 return;
             }
@@ -196,13 +176,11 @@ impl Editor {
     pub fn newline_above_cursor(&mut self) {
         self.lines.insert(self.cursor.y, "".to_string());
         self.move_cursor(CursorMove::LineBegin);
-        self.mode = EditMode::Insert;
     }
 
     pub fn newline_under_cursor(&mut self) {
         self.lines.insert(self.cursor.y + 1, "".to_string());
         self.move_cursor(CursorMove::Down);
-        self.mode = EditMode::Insert;
     }
 
     pub fn newline_at_cursor(&mut self) {
@@ -257,7 +235,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.y)).is_some() {
                     self.cursor.x = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.y) {
-                    if computed == line.len() && self.mode == EditMode::Insert {
+                    if computed == line.len() {
                         self.cursor.x = computed;
                     }
                 }
@@ -268,7 +246,7 @@ impl Editor {
                 if self.char_at((computed, self.cursor.y)).is_some() {
                     self.cursor.x = computed;
                 } else if let Some(line) = self.lines.get(self.cursor.y) {
-                    if computed == line.len() && self.mode == EditMode::Insert {
+                    if computed == line.len() {
                         self.cursor.x = computed;
                     }
                 }
@@ -278,11 +256,7 @@ impl Editor {
             }
             CursorMove::LineEnd => {
                 if let Some(line) = self.lines.get(self.cursor.y) {
-                    if self.mode == EditMode::Insert {
-                        self.cursor.x = line.len();
-                    } else {
-                        self.cursor.x = line.len().saturating_sub(1);
-                    }
+                    self.cursor.x = line.len();
                 }
             }
             // XXX: At some point this should be replaced by a lexer of some sort
@@ -358,85 +332,6 @@ impl Editor {
         self.scroll_down(MEDIUM_SCROLL);
     }
 
-    pub fn command_mode(&mut self) {
-        self.command_history_idx = self.command_history.len();
-        self.mode = EditMode::Command;
-    }
-
-    pub fn clear_command(&mut self) {
-        self.command.clear();
-        self.command_x = 0;
-    }
-
-    pub fn insert_char_in_command(&mut self, c: char) {
-        if self.command_x == self.command.len() {
-            self.command.push(c);
-        } else {
-            self.command.insert(self.command_x, c);
-        }
-
-        self.move_command_cursor(CursorMove::Right);
-    }
-
-    pub fn backspace_char_in_command(&mut self) {
-        if self.command_x == 0 {
-            self.mode = EditMode::Normal;
-            return;
-        }
-
-        self.command.remove(self.command_x - 1);
-        self.move_command_cursor(CursorMove::Left);
-    }
-
-    pub fn execute_current_command(&mut self) -> Result<()> {
-        self.status_message.clear();
-        if self.command.starts_with('/') {
-            self.search.query = self.command.splitn(2, '/').collect_vec()[1].to_string();
-            self.execute_current_search();
-        } else {
-            let command = COMMAND_DICT.get(&self.command.as_str());
-
-            match command {
-                Some(c) => c.execute(self)?,
-                None => Command::GotoLine.execute(self)?,
-            }
-        }
-        self.command_history_add(self.command.clone());
-        self.clear_command();
-        self.mode = EditMode::Normal;
-
-        Ok(())
-    }
-
-    pub fn command_history_add(&mut self, command: String) {
-        if self.command_history.len() == COMMAND_HISTORY_MAX {
-            self.command_history.pop();
-        }
-
-        self.command_history.push(command);
-    }
-
-    pub fn command_history_prev(&mut self) {
-        if let Some(command) = self
-            .command_history
-            .get(self.command_history_idx.saturating_sub(1))
-        {
-            self.command_history_idx = self.command_history_idx.saturating_sub(1);
-            self.command.clone_from(command);
-            self.command_x = self.command.len();
-        }
-    }
-
-    pub fn command_history_next(&mut self) {
-        if let Some(command) = self
-            .command_history
-            .get(self.command_history_idx.saturating_add(1))
-        {
-            self.command.clone_from(command);
-            self.command_x = self.command.len();
-        }
-    }
-
     pub fn clear_search(&mut self) {
         self.search.query.clear();
         self.command_x = 0;
@@ -448,7 +343,6 @@ impl Editor {
             self.status_message = "Pattern not found".to_string();
             return;
         }
-        self.mode = EditMode::Normal;
         if let Some(first_result) = self.search.results.first() {
             self.cursor = (first_result.start, first_result.row).into();
             if let Some((idx, _)) = self
